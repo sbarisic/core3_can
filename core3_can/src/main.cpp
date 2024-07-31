@@ -2,14 +2,36 @@
 #include <core3_gpio.h>
 #include <core3_can.h>
 #include <ecumaster.h>
-
 #include <esp_timer.h>
 
+#define LED_PIN WS2812_PIN // digital pin used to drive the LED strip
+#define LED_COUNT 1        // number of LEDs on the strip
+#define RGB(R, G, B) ((R << 16) | (G << 8) | B)
+
+typedef struct
+{
+    core3_can_msg frame;
+    int64_t next_send;
+    int16_t send_interval;
+} can_message;
+
 // ====================================== Variables ======================================
+
 int64_t emu_tstp[8];
 emu_data_t emu_data;
 
+can_message tx_frames[16];
+int tx_frames_count = 0;
+
 // Basic ==========================================================================================================
+
+int64_t min64(int64_t a, int64_t b)
+{
+    if (a < b)
+        return a;
+    else
+        return b;
+}
 
 int64_t core3_clock_bootms()
 {
@@ -39,8 +61,6 @@ void task_can_receive(void *args)
 
         if (core3_can_receive(&rx_frame))
         {
-            dprintf("Can frame received!\n");
-
             if (!core3_can_decode_emu_frame(&rx_frame, &emu_data))
             {
                 dprintf("Frame (EXT: %d, RTR: %d)", rx_frame.extd, rx_frame.rtr);
@@ -57,25 +77,36 @@ void task_can_receive(void *args)
     }
 }
 
-void task_can_send(void *args)
+void timer_can_send(void *args)
 {
-    for (;;)
+    for (size_t i = 0; i < tx_frames_count; i++)
     {
-        core3_can_msg msg;
-        msg.identifier = 0x420;
-        msg.data_length_code = 4;
-        msg.data[0] = 0x1;
-        msg.data[0] = 0x2;
-        msg.data[0] = 0x3;
-        msg.data[0] = 0x4;
+        int64_t ms = core3_clock_bootms();
 
-        if (core3_can_send(&msg))
-            dprintf("Can frame sent!\n");
-        else
-            dprintf("Failed to send CAN frame\n");
-
-        vTaskDelay(pdMS_TO_TICKS(1500));
+        if (tx_frames[i].next_send < ms)
+        {
+            tx_frames[i].next_send = ms + (int64_t)tx_frames[i].send_interval;
+            core3_can_send(&tx_frames[i].frame);
+        }
     }
+}
+
+void setup_can_channels()
+{
+    tx_frames[tx_frames_count].frame.data_length_code = 3;
+    tx_frames[tx_frames_count].frame.data[0] = 0x10;
+    tx_frames[tx_frames_count].frame.data[1] = 0x11;
+    tx_frames[tx_frames_count].frame.data[2] = 0x12;
+    tx_frames[tx_frames_count].frame.identifier = 0x700;
+    tx_frames[tx_frames_count].send_interval = 500;
+    tx_frames_count++;
+
+    tx_frames[tx_frames_count].frame.data_length_code = 2;
+    tx_frames[tx_frames_count].frame.data[0] = 1;
+    tx_frames[tx_frames_count].frame.data[1] = 2;
+    tx_frames[tx_frames_count].frame.identifier = 0x701;
+    tx_frames[tx_frames_count].send_interval = 400;
+    tx_frames_count++;
 }
 
 void app_main()
@@ -90,9 +121,23 @@ void app_main()
 
     core3_can_init(CORE3_CAN_TIMING_500KBPS, CORE3_CAN_MODE_NORMAL);
 
+    setup_can_channels();
+
     int priority = 10;
-    xTaskCreate(task_can_receive, "task_can_receive", 1024 * 5, NULL, priority, NULL);
-    // xTaskCreate(task_can_send, "task_can_send", 1024 * 5, NULL, priority, NULL);
+    xTaskCreatePinnedToCore(task_can_receive, "task_can_receive", 1024 * 5, NULL, priority, NULL, 1);
+    // xTaskCreatePinnedToCore(task_can_send, "task_can_send", 1024 * 5, NULL, priority, NULL, 1);
+
+    esp_timer_create_args_t timer_can_send_args = {
+        .callback = timer_can_send,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "timer_can_send",
+        .skip_unhandled_events = false};
+
+    esp_timer_handle_t task_can_send_timer;
+    ESP_ERROR_CHECK(esp_timer_create(&timer_can_send_args, &task_can_send_timer));
+
+    esp_timer_start_periodic(task_can_send_timer, 1000);
 
     dprintf("Done!\n");
     while (true)

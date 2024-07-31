@@ -27,7 +27,7 @@ bool core3_can_send(core3_can_msg *msg)
     if (err == ESP_OK)
         return true;
 
-    dprintf("core3_can_send esp_err: 0x%X\n", err);
+    //dprintf("core3_can_send esp_err: 0x%X\n", err);
     return false;
 }
 
@@ -41,7 +41,7 @@ bool core3_can_receive(core3_can_msg *msg)
 
     if (err == ESP_OK)
     {
-        dprintf("Frame received!\n");
+        //dprintf("Frame received!\n");
 
         memcpy(msg->data, message.data, TWAI_FRAME_MAX_DLC);
         msg->data_length_code = message.data_length_code;
@@ -56,7 +56,7 @@ bool core3_can_receive(core3_can_msg *msg)
         return true;
     }
 
-    dprintf("core3_can_receive esp_err: 0x%X\n", err);
+    //dprintf("core3_can_receive esp_err: 0x%X\n", err);
     return false;
 }
 
@@ -64,9 +64,12 @@ int core3_can_init(core3_can_timing timing, core3_can_mode mode)
 {
     dprintf("core3_can_init\n");
 
-    static twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, (twai_mode_t)mode);
-    static twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-    static twai_timing_config_t t_config;
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, (twai_mode_t)mode);
+    g_config.tx_queue_len = 0;
+    g_config.rx_queue_len = 16;
+
+    twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    twai_timing_config_t t_config;
 
     switch (timing)
     {
@@ -113,8 +116,8 @@ int core3_can_init(core3_can_timing timing, core3_can_mode mode)
         return ESP_FAIL;
     }
 
-    //gpio_pulldown_en(CAN_RX_PIN);
-    //gpio_pulldown_en(CAN_TX_PIN);
+    // gpio_pulldown_en(CAN_RX_PIN);
+    // gpio_pulldown_en(CAN_TX_PIN);
 
     if (twai_start() != ESP_OK)
     {

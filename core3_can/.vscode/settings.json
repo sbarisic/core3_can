@@ -20,6 +20,7 @@
         "*.REXXINC*": "rexx",
         "*.rex": "rexx",
         "*.rexx": "rexx",
-        "core3.h": "c"
+        "core3.h": "c",
+        "random": "cpp"
     }
 }
