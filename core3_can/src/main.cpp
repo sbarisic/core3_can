@@ -1,6 +1,7 @@
 #include <core3.h>
-#include <core3_gpio.h>
 #include <core3_can.h>
+#include <core3_gmlan.h>
+#include <core3_gpio.h>
 #include <ecumaster.h>
 #include <esp_timer.h>
 
@@ -19,6 +20,7 @@ typedef struct
 
 int64_t emu_tstp[8];
 emu_data_t emu_data;
+vehicle_data veh_data;
 
 can_message tx_frames[16];
 int tx_frames_count = 0;
@@ -61,7 +63,14 @@ void task_can_receive(void *args)
 
         if (core3_can_receive(&rx_frame))
         {
-            if (!core3_can_decode_emu_frame(&rx_frame, &emu_data))
+
+            if (core3_can_decode_emu_frame(&rx_frame, &emu_data))
+            {
+            }
+            else if (core3_can_decode_gmlan_frame(&rx_frame, &veh_data))
+            {
+            }
+            else
             {
                 dprintf("Frame (EXT: %d, RTR: %d)", rx_frame.extd, rx_frame.rtr);
                 dprintf(" from 0x%08lX, DLC %d, Data ", rx_frame.identifier, rx_frame.data_length_code);
@@ -127,12 +136,11 @@ void app_main()
     xTaskCreatePinnedToCore(task_can_receive, "task_can_receive", 1024 * 5, NULL, priority, NULL, 1);
     // xTaskCreatePinnedToCore(task_can_send, "task_can_send", 1024 * 5, NULL, priority, NULL, 1);
 
-    esp_timer_create_args_t timer_can_send_args = {
-        .callback = timer_can_send,
-        .arg = NULL,
-        .dispatch_method = ESP_TIMER_TASK,
-        .name = "timer_can_send",
-        .skip_unhandled_events = false};
+    esp_timer_create_args_t timer_can_send_args = {.callback = timer_can_send,
+                                                   .arg = NULL,
+                                                   .dispatch_method = ESP_TIMER_TASK,
+                                                   .name = "timer_can_send",
+                                                   .skip_unhandled_events = false};
 
     esp_timer_handle_t task_can_send_timer;
     ESP_ERROR_CHECK(esp_timer_create(&timer_can_send_args, &task_can_send_timer));
@@ -142,6 +150,9 @@ void app_main()
     dprintf("Done!\n");
     while (true)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        dprintf("RPM: %d\n", emu_data.RPM);
+        // dprintf("TPS: %d)
+
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
