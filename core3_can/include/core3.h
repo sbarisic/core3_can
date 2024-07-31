@@ -13,10 +13,12 @@
 
 #include "driver/sdmmc_host.h"
 
+#define dprintf printf
+
 #define PIN_5V_EN GPIO_NUM_16
 
-#define CAN_TX_PIN GPIO_NUM_26
-#define CAN_RX_PIN GPIO_NUM_27
+#define CAN_RX_PIN GPIO_NUM_26
+#define CAN_TX_PIN GPIO_NUM_27
 #define CAN_SE_PIN GPIO_NUM_23
 
 #define RS485_EN_PIN GPIO_NUM_17 // 17 /RE

@@ -10,7 +10,7 @@
 
 #define EMU_BASE 0x600
 
-#if defined(__cplusplus) && defined(CORE2_WINDOWS)
+#if defined(__cplusplus)
 extern "C"
 {
 #endif
@@ -139,6 +139,8 @@ extern "C"
         F_BOOST_MAP_SET = (1 << 6) // Current set of boost parameters
     } OUTFLAGS4;
 
-#if defined(__cplusplus) && defined(CORE2_WINDOWS)
+    bool core3_can_decode_emu_frame(core3_can_msg *frame, emu_data_t *emu_data);
+
+#if defined(__cplusplus)
 }
 #endif
