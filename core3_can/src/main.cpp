@@ -72,13 +72,13 @@ void task_can_receive(void *args)
             }
             else
             {
-                dprintf("Frame (EXT: %d, RTR: %d)", rx_frame.extd, rx_frame.rtr);
+                /*dprintf("Frame (EXT: %d, RTR: %d)", rx_frame.extd, rx_frame.rtr);
                 dprintf(" from 0x%08lX, DLC %d, Data ", rx_frame.identifier, rx_frame.data_length_code);
 
                 for (int i = 0; i < rx_frame.data_length_code; i++)
                     dprintf("0x%02X ", rx_frame.data[i]);
 
-                dprintf("\n");
+                dprintf("\n");*/
             }
         }
 
@@ -100,21 +100,79 @@ void timer_can_send(void *args)
     }
 }
 
+/*
+
+*/
+
 void setup_can_channels()
 {
-    tx_frames[tx_frames_count].frame.data_length_code = 3;
-    tx_frames[tx_frames_count].frame.data[0] = 0x10;
-    tx_frames[tx_frames_count].frame.data[1] = 0x11;
-    tx_frames[tx_frames_count].frame.data[2] = 0x12;
-    tx_frames[tx_frames_count].frame.identifier = 0x700;
+    // RPM
+    tx_frames[tx_frames_count].frame.identifier = 0xC9;
+    tx_frames[tx_frames_count].frame.data_length_code = 8;
+    tx_frames[tx_frames_count].frame.data[0] = 0x80;
+    tx_frames[tx_frames_count].frame.data[1] = 0x18;
+    tx_frames[tx_frames_count].frame.data[2] = 0xA8;
+    tx_frames[tx_frames_count].frame.data[3] = 0;
+    tx_frames[tx_frames_count].frame.data[4] = 0x1D;
+    tx_frames[tx_frames_count].frame.data[5] = 0x50;
+    tx_frames[tx_frames_count].frame.data[6] = 0;
+    tx_frames[tx_frames_count].frame.data[7] = 0;
+    tx_frames[tx_frames_count].send_interval = 12;
+    tx_frames_count++;
+
+    // Oil pressure, fuel level
+    tx_frames[tx_frames_count].frame.identifier = 0x4D1;
+    tx_frames[tx_frames_count].frame.data_length_code = 8;
+    tx_frames[tx_frames_count].frame.data[0] = 0xE9;
+    tx_frames[tx_frames_count].frame.data[1] = 0;
+    tx_frames[tx_frames_count].frame.data[2] = 0;
+    tx_frames[tx_frames_count].frame.data[3] = 0;
+    tx_frames[tx_frames_count].frame.data[4] = 0;
+    tx_frames[tx_frames_count].frame.data[5] = 0;
+    tx_frames[tx_frames_count].frame.data[6] = 0;
+    tx_frames[tx_frames_count].frame.data[7] = 0;
     tx_frames[tx_frames_count].send_interval = 500;
     tx_frames_count++;
 
-    tx_frames[tx_frames_count].frame.data_length_code = 2;
-    tx_frames[tx_frames_count].frame.data[0] = 1;
-    tx_frames[tx_frames_count].frame.data[1] = 2;
-    tx_frames[tx_frames_count].frame.identifier = 0x701;
-    tx_frames[tx_frames_count].send_interval = 400;
+    // Throttle position
+    tx_frames[tx_frames_count].frame.identifier = 0x3D1;
+    tx_frames[tx_frames_count].frame.data_length_code = 8;
+    tx_frames[tx_frames_count].frame.data[0] = 0x11;
+    tx_frames[tx_frames_count].frame.data[1] = 0;
+    tx_frames[tx_frames_count].frame.data[2] = 0;
+    tx_frames[tx_frames_count].frame.data[3] = 0;
+    tx_frames[tx_frames_count].frame.data[4] = 0;
+    tx_frames[tx_frames_count].frame.data[5] = 0;
+    tx_frames[tx_frames_count].frame.data[6] = 0;
+    tx_frames[tx_frames_count].frame.data[7] = 0;
+    tx_frames[tx_frames_count].send_interval = 100;
+    tx_frames_count++;
+
+    // Speed
+    tx_frames[tx_frames_count].frame.identifier = 0x3E9;
+    tx_frames[tx_frames_count].frame.data_length_code = 8;
+
+    tx_frames[tx_frames_count].frame.data[0] = 0;
+    tx_frames[tx_frames_count].frame.data[1] = 0xA0;
+    tx_frames[tx_frames_count].frame.data[2] = 0x80;
+    tx_frames[tx_frames_count].frame.data[3] = 0x7;
+    tx_frames[tx_frames_count].frame.data[4] = 0;
+    tx_frames[tx_frames_count].frame.data[5] = 0xA0;
+    tx_frames[tx_frames_count].frame.data[6] = 0x80;
+    tx_frames[tx_frames_count].frame.data[7] = 0x7;
+
+    /*
+        tx_frames[tx_frames_count].frame.data[0] = 0;
+        tx_frames[tx_frames_count].frame.data[1] = 0;
+        tx_frames[tx_frames_count].frame.data[2] = 0x80;
+        tx_frames[tx_frames_count].frame.data[3] = 0;
+        tx_frames[tx_frames_count].frame.data[4] = 0;
+        tx_frames[tx_frames_count].frame.data[5] = 0;
+        tx_frames[tx_frames_count].frame.data[6] = 0x80;
+        tx_frames[tx_frames_count].frame.data[7] = 0;
+    */
+
+    tx_frames[tx_frames_count].send_interval = 100;
     tx_frames_count++;
 }
 
