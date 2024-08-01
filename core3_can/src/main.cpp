@@ -150,7 +150,7 @@ void app_main()
     dprintf("Done!\n");
     while (true)
     {
-        dprintf("RPM: %d\n", emu_data.RPM);
+        dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
         // dprintf("TPS: %d)
 
         vTaskDelay(pdMS_TO_TICKS(500));
