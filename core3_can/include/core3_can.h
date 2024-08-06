@@ -15,6 +15,7 @@ extern "C"
     typedef enum
     {
         CORE3_CAN_TIMING_25KBPS,
+        CORE3_CAN_TIMING_33_3KBPS,
         CORE3_CAN_TIMING_50KBPS,
         CORE3_CAN_TIMING_100KBPS,
         CORE3_CAN_TIMING_125KBPS,

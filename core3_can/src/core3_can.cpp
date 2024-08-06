@@ -27,7 +27,7 @@ bool core3_can_send(core3_can_msg *msg)
     if (err == ESP_OK)
         return true;
 
-    //dprintf("core3_can_send esp_err: 0x%X\n", err);
+    // dprintf("core3_can_send esp_err: 0x%X\n", err);
     return false;
 }
 
@@ -41,7 +41,7 @@ bool core3_can_receive(core3_can_msg *msg)
 
     if (err == ESP_OK)
     {
-        //dprintf("Frame received!\n");
+        // dprintf("Frame received!\n");
 
         memcpy(msg->data, message.data, TWAI_FRAME_MAX_DLC);
         msg->data_length_code = message.data_length_code;
@@ -56,7 +56,7 @@ bool core3_can_receive(core3_can_msg *msg)
         return true;
     }
 
-    //dprintf("core3_can_receive esp_err: 0x%X\n", err);
+    // dprintf("core3_can_receive esp_err: 0x%X\n", err);
     return false;
 }
 
@@ -75,6 +75,10 @@ int core3_can_init(core3_can_timing timing, core3_can_mode mode)
     {
     case CORE3_CAN_TIMING_25KBPS:
         t_config = TWAI_TIMING_CONFIG_25KBITS();
+        break;
+
+    case CORE3_CAN_TIMING_33_3KBPS:
+        t_config = {.brp = 120, .tseg_1 = 15, .tseg_2 = 4, .sjw = 3, .triple_sampling = false};
         break;
 
     case CORE3_CAN_TIMING_50KBPS:
