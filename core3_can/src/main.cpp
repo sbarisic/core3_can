@@ -112,11 +112,11 @@ void setup_can_channels()
     tx_frames[tx_frames_count].frame.data[0] = 0x80;
     tx_frames[tx_frames_count].frame.data[1] = 0x18;
     tx_frames[tx_frames_count].frame.data[2] = 0xA8;
-    tx_frames[tx_frames_count].frame.data[3] = 0;
+    tx_frames[tx_frames_count].frame.data[3] = 0xFF;
     tx_frames[tx_frames_count].frame.data[4] = 0x1D;
     tx_frames[tx_frames_count].frame.data[5] = 0x50;
-    tx_frames[tx_frames_count].frame.data[6] = 0;
-    tx_frames[tx_frames_count].frame.data[7] = 0;
+    tx_frames[tx_frames_count].frame.data[6] = 0xFF;
+    tx_frames[tx_frames_count].frame.data[7] = 0; // Elevated idle?
     tx_frames[tx_frames_count].send_interval = 12;
     tx_frames_count++;
 
@@ -152,25 +152,23 @@ void setup_can_channels()
     tx_frames[tx_frames_count].frame.identifier = 0x3E9;
     tx_frames[tx_frames_count].frame.data_length_code = 8;
 
-    tx_frames[tx_frames_count].frame.data[0] = 0;
-    tx_frames[tx_frames_count].frame.data[1] = 0xA0;
-    tx_frames[tx_frames_count].frame.data[2] = 0x80;
-    tx_frames[tx_frames_count].frame.data[3] = 0x7;
-    tx_frames[tx_frames_count].frame.data[4] = 0;
-    tx_frames[tx_frames_count].frame.data[5] = 0xA0;
-    tx_frames[tx_frames_count].frame.data[6] = 0x80;
-    tx_frames[tx_frames_count].frame.data[7] = 0x7;
+    // tx_frames[tx_frames_count].frame.data[0] = 0;
+    // tx_frames[tx_frames_count].frame.data[1] = 0xA0;
+    // tx_frames[tx_frames_count].frame.data[2] = 0x80;
+    // tx_frames[tx_frames_count].frame.data[3] = 0x7;
+    // tx_frames[tx_frames_count].frame.data[4] = 0;
+    // tx_frames[tx_frames_count].frame.data[5] = 0xA0;
+    // tx_frames[tx_frames_count].frame.data[6] = 0x80;
+    // tx_frames[tx_frames_count].frame.data[7] = 0x7;
 
-    /*
-        tx_frames[tx_frames_count].frame.data[0] = 0;
-        tx_frames[tx_frames_count].frame.data[1] = 0;
-        tx_frames[tx_frames_count].frame.data[2] = 0x80;
-        tx_frames[tx_frames_count].frame.data[3] = 0;
-        tx_frames[tx_frames_count].frame.data[4] = 0;
-        tx_frames[tx_frames_count].frame.data[5] = 0;
-        tx_frames[tx_frames_count].frame.data[6] = 0x80;
-        tx_frames[tx_frames_count].frame.data[7] = 0;
-    */
+    tx_frames[tx_frames_count].frame.data[0] = 0;
+    tx_frames[tx_frames_count].frame.data[1] = 0;
+    tx_frames[tx_frames_count].frame.data[2] = 0x80;
+    tx_frames[tx_frames_count].frame.data[3] = 0;
+    tx_frames[tx_frames_count].frame.data[4] = 0;
+    tx_frames[tx_frames_count].frame.data[5] = 0;
+    tx_frames[tx_frames_count].frame.data[6] = 0x80;
+    tx_frames[tx_frames_count].frame.data[7] = 0;
 
     tx_frames[tx_frames_count].send_interval = 100;
     tx_frames_count++;
