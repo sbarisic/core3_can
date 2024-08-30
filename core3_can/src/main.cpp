@@ -5,6 +5,8 @@
 #include <ecumaster.h>
 #include <esp_timer.h>
 
+#include <core3_wifi.h>
+
 #define LED_PIN WS2812_PIN // digital pin used to drive the LED strip
 #define LED_COUNT 1        // number of LEDs on the strip
 #define RGB(R, G, B) ((R << 16) | (G << 8) | B)
@@ -177,6 +179,7 @@ void setup_can_channels()
 void app_main()
 {
     dprintf("Starting app!\n");
+    core3_init();
 
     gpio_set_direction(PIN_5V_EN, GPIO_MODE_OUTPUT);
     gpio_set_level(PIN_5V_EN, 1);
@@ -202,12 +205,13 @@ void app_main()
     ESP_ERROR_CHECK(esp_timer_create(&timer_can_send_args, &task_can_send_timer));
 
     esp_timer_start_periodic(task_can_send_timer, 1000);
+    //ESP_ERROR_CHECK(core3_wifi_init());
 
     dprintf("Done!\n");
     while (true)
     {
-        dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
-        // dprintf("TPS: %d)
+        // dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
+        //  dprintf("TPS: %d)
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }

@@ -2,7 +2,6 @@
 
 #include "esp_event.h"
 #include "esp_log.h"
-#include "esp_system.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -16,8 +15,8 @@
 
 #define dprintf printf
 
-#define EXAMPLE_ESP_WIFI_SSID "CONFIG_ESP_WIFI_SSID"
-#define EXAMPLE_ESP_WIFI_PASS "CONFIG_ESP_WIFI_PASSWORD"
+#define EXAMPLE_ESP_WIFI_SSID "Serengeti"
+#define EXAMPLE_ESP_WIFI_PASS "srgt#2018"
 #define EXAMPLE_ESP_MAXIMUM_RETRY 3
 
 #define WIFI_CONNECTED_BIT BIT0
@@ -38,24 +37,24 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         {
             esp_wifi_connect();
             s_retry_num++;
-            dprintf("retry to connect to the AP");
+            dprintf("retry to connect to the AP\n");
         }
         else
         {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
-        dprintf("connect to the AP fail");
+        dprintf("connect to the AP fail\n");
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        dprintf("got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+        dprintf("got ip:" IPSTR "\n", IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
 }
 
-void core3_wifi_init()
+esp_err_t core3_wifi_init()
 {
     s_wifi_event_group = xEventGroupCreate();
 
@@ -66,7 +65,13 @@ void core3_wifi_init()
     esp_netif_create_default_wifi_sta();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    esp_err_t err = esp_wifi_init(&cfg);
+
+    if (err != ESP_OK)
+    {
+        dprintf("esp_wifi_init failed\n");
+        return err;
+    }
 
     esp_event_handler_instance_t instance_any_id;
     esp_event_handler_instance_t instance_got_ip;
@@ -77,21 +82,36 @@ void core3_wifi_init()
     ESP_ERROR_CHECK(
         esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &instance_got_ip));
 
-    wifi_config_t wifi_config = {0};
-    wifi_sta_config_t sta = {0};
+    wifi_config_t wifi_config = {};
+    wifi_sta_config_t sta = {};
 
-    sta.ssid = EXAMPLE_ESP_WIFI_SSID;
-    sta.password = EXAMPLE_ESP_WIFI_PASS;
+    strcpy((char *)sta.ssid, EXAMPLE_ESP_WIFI_SSID);
+    strcpy((char *)sta.password, EXAMPLE_ESP_WIFI_PASS);
     sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
     sta.sae_pwe_h2e = WPA3_SAE_PWE_UNSPECIFIED;
-    sta.sae_h2e_identifier = "H2E Ident";
+    strcpy((char *)sta.sae_h2e_identifier, "H2E Ident");
     wifi_config.sta = sta;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    err = esp_wifi_set_mode(WIFI_MODE_STA);
+    if (err != ESP_OK)
+    {
+        dprintf("esp_wifi_set_mode failed\n");
+        return err;
+    }
 
-    dprintf("wifi_init_sta finished.");
+    err = esp_wifi_set_config(WIFI_IF_STA, &wifi_config);
+    if (err != ESP_OK)
+    {
+        dprintf("esp_wifi_set_config failed\n");
+        return err;
+    }
+
+    err = esp_wifi_start();
+    if (err != ESP_OK)
+    {
+        dprintf("esp_wifi_start failed\n");
+        return err;
+    }
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
@@ -102,14 +122,16 @@ void core3_wifi_init()
      * happened. */
     if (bits & WIFI_CONNECTED_BIT)
     {
-        dprintf("connected to ap SSID:%s password:%s", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+        dprintf("Connected to ap SSID:%s password:%s\n", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
     }
     else if (bits & WIFI_FAIL_BIT)
     {
-        dprintf("Failed to connect to SSID:%s, password:%s", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
+        dprintf("Failed to connect to SSID:%s, password:%s\n", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
     }
     else
     {
-        dprintf("UNEXPECTED EVENT");
+        dprintf("UNEXPECTED EVENT\n");
     }
+
+    return ESP_OK;
 }

@@ -78,7 +78,12 @@ int core3_can_init(core3_can_timing timing, core3_can_mode mode)
         break;
 
     case CORE3_CAN_TIMING_33_3KBPS:
-        t_config = {.brp = 120, .tseg_1 = 15, .tseg_2 = 4, .sjw = 3, .triple_sampling = false};
+        memset((void *)&t_config, 0, sizeof(twai_timing_config_t));
+        t_config.brp = 120;
+        t_config.tseg_1 = 15;
+        t_config.tseg_2 = 4;
+        t_config.sjw = 3;
+        t_config.triple_sampling = false;
         break;
 
     case CORE3_CAN_TIMING_50KBPS:
