@@ -37,21 +37,35 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         {
             esp_wifi_connect();
             s_retry_num++;
-            dprintf("retry to connect to the AP\n");
+            // dprintf("Retry to connect to the AP\n");
         }
         else
         {
             xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
         }
-        dprintf("connect to the AP fail\n");
+
+        // dprintf("Connect to the AP fail\n");
     }
     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
     {
-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-        dprintf("got ip:" IPSTR "\n", IP2STR(&event->ip_info.ip));
+        // ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+
+        // dprintf("Got ip: " IPSTR "\n", IP2STR(&event->ip_info.ip));
+
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
     }
+}
+
+bool core3_wifi_delay_until_connected()
+{
+    EventBits_t bits =
+        xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+
+    if (bits & WIFI_CONNECTED_BIT)
+        return true;
+
+    return false;
 }
 
 esp_err_t core3_wifi_init()
@@ -69,7 +83,7 @@ esp_err_t core3_wifi_init()
 
     if (err != ESP_OK)
     {
-        dprintf("esp_wifi_init failed\n");
+        dprintf("esp_wifi_init - FAIL\n");
         return err;
     }
 
@@ -113,25 +127,6 @@ esp_err_t core3_wifi_init()
         return err;
     }
 
-    /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-     * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
-    EventBits_t bits =
-        xEventGroupWaitBits(s_wifi_event_group, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
-
-    /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-     * happened. */
-    if (bits & WIFI_CONNECTED_BIT)
-    {
-        dprintf("Connected to ap SSID:%s password:%s\n", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-    }
-    else if (bits & WIFI_FAIL_BIT)
-    {
-        dprintf("Failed to connect to SSID:%s, password:%s\n", EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-    }
-    else
-    {
-        dprintf("UNEXPECTED EVENT\n");
-    }
-
+    dprintf("esp_wifi_init - OK\n");
     return ESP_OK;
 }

@@ -176,6 +176,13 @@ void setup_can_channels()
     tx_frames_count++;
 }
 
+void print_runtime()
+{
+    int64_t us = esp_timer_get_time();
+    float s = us / 1000000.0f;
+    dprintf("Time since boot: %.2f s\n", s);
+}
+
 void app_main()
 {
     dprintf("Starting app!\n");
@@ -205,7 +212,20 @@ void app_main()
     ESP_ERROR_CHECK(esp_timer_create(&timer_can_send_args, &task_can_send_timer));
 
     esp_timer_start_periodic(task_can_send_timer, 1000);
-    //ESP_ERROR_CHECK(core3_wifi_init());
+
+    print_runtime();
+
+    if (core3_wifi_init() == ESP_OK)
+    {
+        dprintf("Delaying until WiFi connected ... ");
+
+        if (core3_wifi_delay_until_connected())
+            dprintf("OK\n");
+        else
+            dprintf("FAIL\n");
+    }
+
+    print_runtime();
 
     dprintf("Done!\n");
     while (true)
