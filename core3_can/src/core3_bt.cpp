@@ -611,6 +611,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     case ESP_GATTS_WRITE_EVT:
     {
         // ESP_LOGI(GATTS_TABLE_TAG, "Characteristic write, conn_id %d, handle %d", param->write.conn_id, param->write.handle);
+        dprintf("Characteristic write, conn_id %d, handle %d, len %d\n", param->write.conn_id, param->write.handle, param->write.len);
+
+
         res = find_char_and_desr_index(p_data->write.handle);
         if (p_data->write.is_prep == false)
         {
