@@ -6,6 +6,7 @@
 #include <esp_timer.h>
 
 #include <core3_wifi.h>
+#include <core3_bt.h>
 
 #define LED_PIN WS2812_PIN // digital pin used to drive the LED strip
 #define LED_COUNT 1        // number of LEDs on the strip
@@ -59,28 +60,34 @@ int64_t timestamp_get_last(uint32_t can_id)
 
 void task_can_receive(void *args)
 {
+    dprintf("Start CAN receive\n");
+
     for (;;)
     {
         core3_can_msg rx_frame;
 
         if (core3_can_receive(&rx_frame))
         {
-
-            if (core3_can_decode_emu_frame(&rx_frame, &emu_data))
+            /**if (core3_can_decode_emu_frame(&rx_frame, &emu_data))
             {
+                dprintf("EcuMaster Frame\n");
             }
             else if (core3_can_decode_gmlan_frame(&rx_frame, &veh_data))
             {
+                dprintf("GMLAN Frame\n");
             }
-            else
+            else {}*/
+
+            if (rx_frame.extd != 1)
             {
-                /*dprintf("Frame (EXT: %d, RTR: %d)", rx_frame.extd, rx_frame.rtr);
+
+                dprintf("Frame (EXT: %d, RTR: %d)", rx_frame.extd, rx_frame.rtr);
                 dprintf(" from 0x%08lX, DLC %d, Data ", rx_frame.identifier, rx_frame.data_length_code);
 
                 for (int i = 0; i < rx_frame.data_length_code; i++)
                     dprintf("0x%02X ", rx_frame.data[i]);
 
-                dprintf("\n");*/
+                dprintf("\n");
             }
         }
 
@@ -96,84 +103,120 @@ void timer_can_send(void *args)
 
         if (tx_frames[i].next_send < ms)
         {
+            // dprintf("SEND 0x%lx\n", tx_frames[i].frame.identifier);
+
             tx_frames[i].next_send = ms + (int64_t)tx_frames[i].send_interval;
             core3_can_send(&tx_frames[i].frame);
         }
     }
 }
 
-/*
-
-*/
-
 void setup_can_channels()
 {
-    // RPM
-    tx_frames[tx_frames_count].frame.identifier = 0xC9;
+    tx_frames_count = 0;
+
+    /*// Wakeup
+    tx_frames[tx_frames_count].frame.identifier = 0x100;
     tx_frames[tx_frames_count].frame.data_length_code = 8;
-    tx_frames[tx_frames_count].frame.data[0] = 0x80;
-    tx_frames[tx_frames_count].frame.data[1] = 0x18;
-    tx_frames[tx_frames_count].frame.data[2] = 0xA8;
-    tx_frames[tx_frames_count].frame.data[3] = 0xFF;
-    tx_frames[tx_frames_count].frame.data[4] = 0x1D;
-    tx_frames[tx_frames_count].frame.data[5] = 0x50;
-    tx_frames[tx_frames_count].frame.data[6] = 0xFF;
-    tx_frames[tx_frames_count].frame.data[7] = 0; // Elevated idle?
-    tx_frames[tx_frames_count].send_interval = 12;
-    tx_frames_count++;
-
-    // Oil pressure, fuel level
-    tx_frames[tx_frames_count].frame.identifier = 0x4D1;
-    tx_frames[tx_frames_count].frame.data_length_code = 8;
-    tx_frames[tx_frames_count].frame.data[0] = 0xE9;
-    tx_frames[tx_frames_count].frame.data[1] = 0;
-    tx_frames[tx_frames_count].frame.data[2] = 0;
-    tx_frames[tx_frames_count].frame.data[3] = 0;
-    tx_frames[tx_frames_count].frame.data[4] = 0;
-    tx_frames[tx_frames_count].frame.data[5] = 0;
-    tx_frames[tx_frames_count].frame.data[6] = 0;
-    tx_frames[tx_frames_count].frame.data[7] = 0;
-    tx_frames[tx_frames_count].send_interval = 500;
-    tx_frames_count++;
-
-    // Throttle position
-    tx_frames[tx_frames_count].frame.identifier = 0x3D1;
-    tx_frames[tx_frames_count].frame.data_length_code = 8;
-    tx_frames[tx_frames_count].frame.data[0] = 0x11;
-    tx_frames[tx_frames_count].frame.data[1] = 0;
-    tx_frames[tx_frames_count].frame.data[2] = 0;
-    tx_frames[tx_frames_count].frame.data[3] = 0;
-    tx_frames[tx_frames_count].frame.data[4] = 0;
-    tx_frames[tx_frames_count].frame.data[5] = 0;
-    tx_frames[tx_frames_count].frame.data[6] = 0;
-    tx_frames[tx_frames_count].frame.data[7] = 0;
-    tx_frames[tx_frames_count].send_interval = 100;
-    tx_frames_count++;
-
-    // Speed
-    tx_frames[tx_frames_count].frame.identifier = 0x3E9;
-    tx_frames[tx_frames_count].frame.data_length_code = 8;
-
-    // tx_frames[tx_frames_count].frame.data[0] = 0;
-    // tx_frames[tx_frames_count].frame.data[1] = 0xA0;
-    // tx_frames[tx_frames_count].frame.data[2] = 0x80;
-    // tx_frames[tx_frames_count].frame.data[3] = 0x7;
-    // tx_frames[tx_frames_count].frame.data[4] = 0;
-    // tx_frames[tx_frames_count].frame.data[5] = 0xA0;
-    // tx_frames[tx_frames_count].frame.data[6] = 0x80;
-    // tx_frames[tx_frames_count].frame.data[7] = 0x7;
-
     tx_frames[tx_frames_count].frame.data[0] = 0;
     tx_frames[tx_frames_count].frame.data[1] = 0;
-    tx_frames[tx_frames_count].frame.data[2] = 0x80;
+    tx_frames[tx_frames_count].frame.data[2] = 0;
     tx_frames[tx_frames_count].frame.data[3] = 0;
     tx_frames[tx_frames_count].frame.data[4] = 0;
     tx_frames[tx_frames_count].frame.data[5] = 0;
-    tx_frames[tx_frames_count].frame.data[6] = 0x80;
+    tx_frames[tx_frames_count].frame.data[6] = 0;
     tx_frames[tx_frames_count].frame.data[7] = 0;
+    tx_frames[tx_frames_count].send_interval = 1000;
+    tx_frames_count++;
 
+    // Wakeup
+    tx_frames[tx_frames_count].frame.identifier = 0x101;
+    tx_frames[tx_frames_count].frame.data_length_code = 4;
+    tx_frames[tx_frames_count].frame.data[0] = 0xFD;
+    tx_frames[tx_frames_count].frame.data[1] = 0x02;
+    tx_frames[tx_frames_count].frame.data[2] = 0x10;
+    tx_frames[tx_frames_count].frame.data[3] = 0x04;
+    tx_frames[tx_frames_count].frame.data[4] = 0;
+    tx_frames[tx_frames_count].frame.data[5] = 0;
+    tx_frames[tx_frames_count].frame.data[6] = 0;
+    tx_frames[tx_frames_count].frame.data[7] = 0;
+    tx_frames[tx_frames_count].send_interval = 1000;
+    tx_frames_count++;
+
+    // Wakeup
+    tx_frames[tx_frames_count].frame.identifier = 0x632;
+    tx_frames[tx_frames_count].frame.data_length_code = 4;
+    tx_frames[tx_frames_count].frame.data[0] = 0;
+    tx_frames[tx_frames_count].frame.data[1] = 0x48;
+    tx_frames[tx_frames_count].frame.data[2] = 0x50;
+    tx_frames[tx_frames_count].frame.data[3] = 0;
+    tx_frames[tx_frames_count].frame.data[4] = 0;
+    tx_frames[tx_frames_count].frame.data[5] = 0;
+    tx_frames[tx_frames_count].frame.data[6] = 0;
+    tx_frames[tx_frames_count].frame.data[7] = 0;
+    tx_frames[tx_frames_count].send_interval = 1000;
+    tx_frames_count++;
+
+    // Wakeup
+    tx_frames[tx_frames_count].frame.identifier = 0x170;
+    tx_frames[tx_frames_count].frame.data_length_code = 3;
+    tx_frames[tx_frames_count].frame.data[0] = 0x60;
+    tx_frames[tx_frames_count].frame.data[1] = 0x00;
+    tx_frames[tx_frames_count].frame.data[2] = 0x00;
+    tx_frames[tx_frames_count].frame.data[3] = 0;
+    tx_frames[tx_frames_count].frame.data[4] = 0;
+    tx_frames[tx_frames_count].frame.data[5] = 0;
+    tx_frames[tx_frames_count].frame.data[6] = 0;
+    tx_frames[tx_frames_count].frame.data[7] = 0;
     tx_frames[tx_frames_count].send_interval = 100;
     tx_frames_count++;
+    //*/
+}
+
+void can_channel_test()
+{
+
+    can_message frame;
+    frame.frame.identifier = 0x108;
+    frame.frame.data_length_code = 8;
+    frame.frame.data[0] = 0x23;
+    frame.frame.data[1] = 0x20;
+    frame.frame.data[2] = 0x98;
+    frame.frame.data[3] = 0x00;
+    frame.frame.data[4] = 0x04;
+    frame.frame.data[5] = 0xE5;
+    frame.frame.data[6] = 0x00;
+    frame.frame.data[7] = 0x00;
+    core3_can_send(&frame.frame);
+}
+
+void can_channel_turn_on_IPC()
+{
+
+    can_message frame;
+    frame.frame.identifier = 0x148;
+    frame.frame.data_length_code = 8;
+    frame.frame.data[0] = 0x20;
+    frame.frame.data[1] = 0x20;
+    frame.frame.data[2] = 0x20;
+    frame.frame.data[3] = 0x20;
+    frame.frame.data[4] = 0x36;
+    frame.frame.data[5] = 0x36;
+    frame.frame.data[6] = 0xB0;
+    frame.frame.data[7] = 0x46;
+    core3_can_send(&frame.frame);
+
+    frame.frame.identifier = 0x142;
+    frame.frame.data_length_code = 8;
+    frame.frame.data[0] = 0x43;
+    frame.frame.data[1] = 0x4F;
+    frame.frame.data[2] = 0x4F;
+    frame.frame.data[3] = 0x4C;
+    frame.frame.data[4] = 0x41;
+    frame.frame.data[5] = 0x4E;
+    frame.frame.data[6] = 0x54;
+    frame.frame.data[7] = 0x20;
+    core3_can_send(&frame.frame);
 }
 
 void print_runtime()
@@ -194,8 +237,9 @@ void app_main()
     gpio_set_direction(CAN_SE_PIN, GPIO_MODE_OUTPUT);
     gpio_set_level(CAN_SE_PIN, 0);
 
-    core3_can_init(CORE3_CAN_TIMING_500KBPS, CORE3_CAN_MODE_NORMAL);
+    core3_bt_init();
 
+    core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
 
     int priority = 10;
@@ -211,11 +255,11 @@ void app_main()
     esp_timer_handle_t task_can_send_timer;
     ESP_ERROR_CHECK(esp_timer_create(&timer_can_send_args, &task_can_send_timer));
 
-    esp_timer_start_periodic(task_can_send_timer, 1000);
+    esp_timer_start_periodic(task_can_send_timer, 1000 * 2);
 
-    print_runtime();
+    // print_runtime();
 
-    if (core3_wifi_init() == ESP_OK)
+    /*if (core3_wifi_init() == ESP_OK)
     {
         dprintf("Delaying until WiFi connected ... ");
 
@@ -225,13 +269,15 @@ void app_main()
             dprintf("FAIL\n");
     }
 
-    print_runtime();
+    print_runtime();*/
 
     dprintf("Done!\n");
     while (true)
     {
         // dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
         //  dprintf("TPS: %d)
+
+        can_channel_turn_on_IPC();
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }
