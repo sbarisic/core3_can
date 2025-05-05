@@ -271,14 +271,23 @@ void app_main()
 
     print_runtime();*/
 
+    int counter = 0;
+    char print_buf[512];
+
     dprintf("Done!\n");
     while (true)
     {
         // dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
         //  dprintf("TPS: %d)
 
-        can_channel_turn_on_IPC();
+        // can_channel_turn_on_IPC();
 
-        vTaskDelay(pdMS_TO_TICKS(500));
+        if (core3_bt_is_connected())
+        {
+            sprintf(print_buf, "Hello BLE Data %d\n", counter++);
+            core3_bt_send_data(print_buf);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }

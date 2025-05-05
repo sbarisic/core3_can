@@ -81,15 +81,8 @@ static const uint8_t spp_adv_data[23] = {
 static uint16_t spp_mtu_size = SPP_GATT_MTU_SIZE;
 static uint16_t spp_conn_id = 0xffff;
 static esp_gatt_if_t spp_gatts_if = 0xff;
-QueueHandle_t spp_uart_queue = NULL;
-static QueueHandle_t cmd_cmd_queue = NULL;
 
-#ifdef SUPPORT_HEARTBEAT
-static QueueHandle_t cmd_heartbeat_queue = NULL;
-static uint8_t heartbeat_s[9] = {'E', 's', 'p', 'r', 'e', 's', 's', 'i', 'f'};
-static bool enable_heart_ntf = false;
-static uint8_t heartbeat_count_num = 0;
-#endif
+static QueueHandle_t cmd_cmd_queue = NULL;
 
 static bool enable_data_ntf = false;
 static bool is_connected = false;
@@ -104,9 +97,9 @@ static esp_ble_adv_params_t spp_adv_params = {
     .adv_int_max = 0x40,
     .adv_type = ADV_TYPE_IND,
     .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+    .peer_addr_type = BLE_ADDR_TYPE_PUBLIC,
     .channel_map = ADV_CHNL_ALL,
-    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY,
-};
+    .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY};
 
 struct gatts_profile_inst
 {
@@ -168,6 +161,7 @@ static const uint16_t character_client_config_uuid = ESP_GATT_UUID_CHAR_CLIENT_C
 
 static const uint8_t char_prop_read_notify = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
 static const uint8_t char_prop_read_write = ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_READ;
+
 #ifdef CONFIG_EXAMPLE_SPP_THROUGHPUT
 static const uint8_t spp_data_notity_char_prop = char_prop_read_notify;
 #else
@@ -352,210 +346,6 @@ static void print_write_buffer(void)
     }
 }
 
-void uart_task(void *pvParameters)
-{
-    uart_event_t event;
-    uint8_t total_num = 0;
-    uint8_t current_num = 0;
-
-    for (;;)
-    {
-        // Waiting for UART event.
-        if (xQueueReceive(spp_uart_queue, (void *)&event, (TickType_t)portMAX_DELAY))
-        {
-            switch (event.type)
-            {
-            // Event of UART receiving data
-            case UART_DATA:
-                if ((event.size) && (is_connected))
-                {
-                    uint8_t *temp = NULL;
-                    uint8_t *ntf_value_p = NULL;
-#ifdef SUPPORT_HEARTBEAT
-                    if (!enable_heart_ntf)
-                    {
-                        ESP_LOGE(GATTS_TABLE_TAG, "%s do not enable heartbeat Notify", __func__);
-                        break;
-                    }
-#endif
-                    if (!enable_data_ntf)
-                    {
-                        dprintf("%s do not enable data Notify\n", __func__);
-                        break;
-                    }
-                    temp = (uint8_t *)malloc(sizeof(uint8_t) * event.size);
-                    if (temp == NULL)
-                    {
-                        dprintf("%s malloc.1 failed\n", __func__);
-                        break;
-                    }
-                    uart_read_bytes(UART_NUM_0, temp, event.size, portMAX_DELAY);
-                    if (event.size <= (spp_mtu_size - 3))
-                    {
-#ifdef CONFIG_EXAMPLE_ENABLE_RF_EMC_TEST_MODE
-                        ESP_LOG_BUFFER_HEX("TX", temp, event.size);
-#endif
-#ifdef CONFIG_EXAMPLE_SPP_THROUGHPUT
-                        if (esp_ble_get_cur_sendable_packets_num(spp_conn_id) > 0)
-                        {
-                            esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], event.size, temp, false);
-                        }
-                        else
-                        {
-                            // Add the vTaskDelay to prevent this task from consuming the CPU all the time, causing low-priority tasks to not be executed at all.
-                            vTaskDelay(10 / portTICK_PERIOD_MS);
-                        }
-#else
-                        esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], event.size, temp, true);
-#endif
-                    }
-                    else if (event.size > (spp_mtu_size - 3))
-                    {
-                        if ((event.size % (spp_mtu_size - 7)) == 0)
-                        {
-                            total_num = event.size / (spp_mtu_size - 7);
-                        }
-                        else
-                        {
-                            total_num = event.size / (spp_mtu_size - 7) + 1;
-                        }
-                        current_num = 1;
-                        ntf_value_p = (uint8_t *)malloc((spp_mtu_size - 3) * sizeof(uint8_t));
-                        if (ntf_value_p == NULL)
-                        {
-                            dprintf("%s malloc.2 failed\n", __func__);
-                            free(temp);
-                            break;
-                        }
-                        while (current_num <= total_num)
-                        {
-                            if (current_num < total_num)
-                            {
-                                ntf_value_p[0] = '#';
-                                ntf_value_p[1] = '#';
-                                ntf_value_p[2] = total_num;
-                                ntf_value_p[3] = current_num;
-                                memcpy(ntf_value_p + 4, temp + (current_num - 1) * (spp_mtu_size - 7), (spp_mtu_size - 7));
-                                esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], (spp_mtu_size - 3), ntf_value_p, false);
-                            }
-                            else if (current_num == total_num)
-                            {
-                                ntf_value_p[0] = '#';
-                                ntf_value_p[1] = '#';
-                                ntf_value_p[2] = total_num;
-                                ntf_value_p[3] = current_num;
-                                memcpy(ntf_value_p + 4, temp + (current_num - 1) * (spp_mtu_size - 7), (event.size - (current_num - 1) * (spp_mtu_size - 7)));
-                                esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], (event.size - (current_num - 1) * (spp_mtu_size - 7) + 4), ntf_value_p, false);
-                            }
-                            vTaskDelay(20 / portTICK_PERIOD_MS);
-                            current_num++;
-                        }
-                        free(ntf_value_p);
-                    }
-                    free(temp);
-                }
-                break;
-            default:
-                break;
-            }
-        }
-    }
-    vTaskDelete(NULL);
-}
-
-static void spp_uart_init(void)
-{
-    uart_config_t uart_config = {
-        .baud_rate = 115200,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_RTS,
-        .rx_flow_ctrl_thresh = 124,
-        .source_clk = UART_SCLK_DEFAULT,
-    };
-
-    // Install UART driver, and get the queue.
-    uart_driver_install(UART_NUM_0, 4096, 8192, 10, &spp_uart_queue, 0);
-    // Set UART parameters
-    uart_param_config(UART_NUM_0, &uart_config);
-    // Set UART pins
-    uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    xTaskCreate(uart_task, "uTask", 4096, (void *)UART_NUM_0, 8, NULL);
-}
-
-#ifdef SUPPORT_HEARTBEAT
-void spp_heartbeat_task(void *arg)
-{
-    uint16_t cmd_id;
-
-    for (;;)
-    {
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-        if (xQueueReceive(cmd_heartbeat_queue, &cmd_id, portMAX_DELAY))
-        {
-            while (1)
-            {
-                heartbeat_count_num++;
-                vTaskDelay(5000 / portTICK_PERIOD_MS);
-                if ((heartbeat_count_num > 3) && (is_connected))
-                {
-                    esp_ble_gap_disconnect(spp_remote_bda);
-                }
-                if (is_connected && enable_heart_ntf)
-                {
-                    esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_HEARTBEAT_VAL], sizeof(heartbeat_s), heartbeat_s, false);
-                }
-                else if (!is_connected)
-                {
-                    break;
-                }
-            }
-        }
-    }
-    vTaskDelete(NULL);
-}
-#endif
-
-void spp_cmd_task(void *arg)
-{
-    uint8_t *cmd_id;
-
-    for (;;)
-    {
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-        if (xQueueReceive(cmd_cmd_queue, &cmd_id, portMAX_DELAY))
-        {
-            size_t slen = strlen((char *)cmd_id);
-
-            for (size_t i = 0; i < slen; i++)
-            {
-                dprintf("%c", ((char *)(cmd_id))[i]);
-            }
-
-            free(cmd_id);
-        }
-    }
-    vTaskDelete(NULL);
-}
-
-static void spp_task_init(void)
-{
-#ifdef CONFIG_EXAMPLE_ENABLE_RF_TESTING_CONFIGURATION_COMMAND
-    rf_testing_configuration_command_enable();
-#else
-    spp_uart_init();
-#endif // CONFIG_EXAMPLE_ENABLE_RF_TESTING_CONFIGURATION_COMMAND
-
-#ifdef SUPPORT_HEARTBEAT
-    cmd_heartbeat_queue = xQueueCreate(10, sizeof(uint32_t));
-    xTaskCreate(spp_heartbeat_task, "spp_heartbeat_task", 2048, NULL, 10, NULL);
-#endif
-
-    cmd_cmd_queue = xQueueCreate(10, sizeof(uint32_t));
-    xTaskCreate(spp_cmd_task, "spp_cmd_task", 4096, NULL, 10, NULL);
-}
-
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     switch (event)
@@ -581,12 +371,16 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         dprintf("Advertising stop successfully\n");
         break;
     case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
+    {
+
         dprintf("Connection params update, status %d, conn_int %d, latency %d, timeout %d\n",
                 param->update_conn_params.status,
                 param->update_conn_params.conn_int,
                 param->update_conn_params.latency,
                 param->update_conn_params.timeout);
+
         break;
+    }
     default:
         break;
     }
@@ -596,6 +390,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 {
     esp_ble_gatts_cb_param_t *p_data = (esp_ble_gatts_cb_param_t *)param;
     uint8_t res = 0xff;
+
+    dprintf(">> gatts_profile_event_handler event %d\n", event);
 
     switch (event)
     {
@@ -610,9 +406,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
     case ESP_GATTS_WRITE_EVT:
     {
-        // ESP_LOGI(GATTS_TABLE_TAG, "Characteristic write, conn_id %d, handle %d", param->write.conn_id, param->write.handle);
-        dprintf("Characteristic write, conn_id %d, handle %d, len %d\n", param->write.conn_id, param->write.handle, param->write.len);
 
+        // ESP_LOGI(GATTS_TABLE_TAG, "Characteristic write, conn_id %d, handle %d", param->write.conn_id, param->write.handle);
+        dprintf("Characteristic write, conn_id %d, handle %d, len %d = '%s'\n", param->write.conn_id, param->write.handle, param->write.len, (const char *)param->write.value);
 
         res = find_char_and_desr_index(p_data->write.handle);
         if (p_data->write.is_prep == false)
@@ -659,35 +455,9 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                     dprintf("SPP status notification disable\n");
                 }
             }
-#ifdef SUPPORT_HEARTBEAT
-            else if (res == SPP_IDX_SPP_HEARTBEAT_CFG)
-            {
-                if ((p_data->write.len == 2) && (p_data->write.value[0] == 0x01) && (p_data->write.value[1] == 0x00))
-                {
-                    ESP_LOGI(GATTS_TABLE_TAG, "SPP heartbeat notification enable");
-                    enable_heart_ntf = true;
-                }
-                else if ((p_data->write.len == 2) && (p_data->write.value[0] == 0x00) && (p_data->write.value[1] == 0x00))
-                {
-                    ESP_LOGI(GATTS_TABLE_TAG, "SPP heartbeat notification disable");
-                    enable_heart_ntf = false;
-                }
-            }
-            else if (res == SPP_IDX_SPP_HEARTBEAT_VAL)
-            {
-                if ((p_data->write.len == sizeof(heartbeat_s)) && (memcmp(heartbeat_s, p_data->write.value, sizeof(heartbeat_s)) == 0))
-                {
-                    heartbeat_count_num = 0;
-                }
-            }
-#endif
             else if (res == SPP_IDX_SPP_DATA_RECV_VAL)
             {
-#ifdef CONFIG_EXAMPLE_ENABLE_RF_EMC_TEST_MODE
-                ESP_LOG_BUFFER_HEX("RX", p_data->write.value, p_data->write.len);
-#else
                 uart_write_bytes(UART_NUM_0, (char *)(p_data->write.value), p_data->write.len);
-#endif
             }
             else
             {
@@ -829,6 +599,25 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
             }
         }
     } while (0);
+}
+
+void core3_bt_send_data(const char *dat)
+{
+    if (!is_connected)
+    {
+        return;
+    }
+
+    size_t len = strlen(dat);
+
+    // esp_ble_gatts_send_indicate()
+
+    esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], len, (uint8_t *)dat, false);
+}
+
+bool core3_bt_is_connected()
+{
+    return is_connected;
 }
 
 esp_err_t core3_bt_init()
