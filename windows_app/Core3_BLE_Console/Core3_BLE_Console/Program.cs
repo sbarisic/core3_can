@@ -7,6 +7,7 @@ using System.Text;
 
 using Windows.Devices.Bluetooth;
 using Windows.Devices.Bluetooth.GenericAttributeProfile;
+using Raylib_cs;
 
 namespace Core3_BLE_Console {
 	internal class Program {
@@ -18,6 +19,28 @@ namespace Core3_BLE_Console {
 		static void Main(string[] args) {
 			Console.WriteLine("Starting");
 
+			Raylib.InitWindow(1920, 1080, "Core3");
+			//Raylib.SetWindowState(ConfigFlags.Msaa4xHint);
+			//Raylib.SetWindowState(ConfigFlags.HighDpiWindow);
+			Raylib.SetTargetFPS(240);
+
+			Graphics.Init();
+
+			while (!Raylib.WindowShouldClose()) {
+				Graphics.Draw();
+			}
+
+			Raylib.CloseWindow();
+			//Console.ReadLine();
+			return;
+
+			DoBluetooth();
+			Console.WriteLine("Done!");
+			Console.ReadLine();
+
+		}
+
+		static void DoBluetooth() {
 			BLE = CrossBluetoothLE.Current;
 			Adapter = CrossBluetoothLE.Current.Adapter;
 
@@ -66,10 +89,6 @@ namespace Core3_BLE_Console {
 					Thread.Sleep(1000);
 				}
 			}
-
-			Console.WriteLine("Done!");
-			Console.ReadLine();
-
 		}
 
 		private static void Program_ValueUpdated(object sender, Plugin.BLE.Abstractions.EventArgs.CharacteristicUpdatedEventArgs e) {
