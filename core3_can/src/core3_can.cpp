@@ -5,6 +5,8 @@
 #include "driver/gpio.h"
 #include "driver/twai.h"
 
+QueueHandle_t rx_queue = NULL;
+
 bool core3_can_send(core3_can_msg *msg)
 {
     if (msg == NULL)
@@ -28,6 +30,59 @@ bool core3_can_send(core3_can_msg *msg)
         return true;
 
     // dprintf("core3_can_send esp_err: 0x%X\n", err);
+    return false;
+}
+
+bool core3_can_rx_enqueue(core3_can_msg *msg)
+{
+    if (msg == NULL)
+    {
+        dprintf("core3_can_rx_enqueue - NULL pointer\n");
+        return false;
+    }
+
+    if (rx_queue == NULL)
+    {
+        rx_queue = xQueueCreate(32, sizeof(core3_can_msg));
+
+        if (rx_queue == NULL)
+        {
+            dprintf("core3_can_rx_enqueue - queue could not be created\n");
+            return false;
+        }
+    }
+
+    if (xQueueSendToBack(rx_queue, (const void *)msg, pdMS_TO_TICKS(5)) == pdPASS)
+    {
+        return true;
+    }
+
+    dprintf("core3_can_rx_enqueue - Enqueue failed\n");
+    return false;
+}
+
+bool core3_can_rx_dequeue(core3_can_msg *msg)
+{
+    if (msg == NULL)
+    {
+        dprintf("core3_can_rx_dequeue - NULL pointer\n");
+        return false;
+    }
+
+    memset(msg, 0, sizeof(core3_can_msg));
+
+    if (rx_queue == NULL)
+    {
+        //dprintf("core3_can_rx_dequeue - Queue not created\n");
+        return false;
+    }
+
+    if (xQueueReceive(rx_queue, (void *)msg, portMAX_DELAY) == pdPASS)
+    {
+        return true;
+    }
+
+    dprintf("core3_can_rx_dequeue - Dequeue failed\n");
     return false;
 }
 
@@ -58,6 +113,42 @@ bool core3_can_receive(core3_can_msg *msg)
 
     // dprintf("core3_can_receive esp_err: 0x%X\n", err);
     return false;
+}
+
+void core3_can_task_receive(void *args)
+{
+    while (true)
+    {
+        core3_can_msg msg;
+        if (core3_can_receive(&msg))
+        {
+            // TODO: Process known received CAN frames
+
+            /**if (core3_can_decode_emu_frame(&rx_frame, &emu_data))
+           {
+               dprintf("EcuMaster Frame\n");
+           }
+           else if (core3_can_decode_gmlan_frame(&rx_frame, &veh_data))
+           {
+               dprintf("GMLAN Frame\n");
+           }
+           else {}*/
+
+            if (msg.extd != 1)
+            {
+                core3_can_rx_enqueue(&msg);
+            }
+        }
+    }
+}
+
+void core3_can_task_send(void *args)
+{
+    while (true)
+    {
+        // TODO: Send CAN frames
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
 }
 
 int core3_can_init(core3_can_timing timing, core3_can_mode mode)
@@ -133,6 +224,9 @@ int core3_can_init(core3_can_timing timing, core3_can_mode mode)
         dprintf("core3_can_init - Failed to start driver\n");
         return ESP_FAIL;
     }
+
+    xTaskCreate(core3_can_task_receive, "core3_can_task_receive", 1024 * 5, NULL, CORE3_CAN_RECEIVE_PRIORITY, NULL);
+    xTaskCreate(core3_can_task_send, "core3_can_task_send", 1024 * 5, NULL, CORE3_CAN_SEND_PRIORITY, NULL);
 
     dprintf("core3_can_init - CAN ok\n");
     return ESP_OK;

@@ -5,8 +5,8 @@
 #include <ecumaster.h>
 #include <esp_timer.h>
 
-#include <core3_wifi.h>
 #include <core3_bt.h>
+#include <core3_wifi.h>
 
 #define LED_PIN WS2812_PIN // digital pin used to drive the LED strip
 #define LED_COUNT 1        // number of LEDs on the strip
@@ -56,43 +56,6 @@ void timestamp_set(uint32_t can_id, int64_t val)
 int64_t timestamp_get_last(uint32_t can_id)
 {
     return core3_clock_bootms() - timestamp_get(can_id);
-}
-
-void task_can_receive(void *args)
-{
-    dprintf("Start CAN receive\n");
-
-    for (;;)
-    {
-        core3_can_msg rx_frame;
-
-        if (core3_can_receive(&rx_frame))
-        {
-            /**if (core3_can_decode_emu_frame(&rx_frame, &emu_data))
-            {
-                dprintf("EcuMaster Frame\n");
-            }
-            else if (core3_can_decode_gmlan_frame(&rx_frame, &veh_data))
-            {
-                dprintf("GMLAN Frame\n");
-            }
-            else {}*/
-
-            if (rx_frame.extd != 1)
-            {
-
-                dprintf("Frame (EXT: %d, RTR: %d)", rx_frame.extd, rx_frame.rtr);
-                dprintf(" from 0x%08lX, DLC %d, Data ", rx_frame.identifier, rx_frame.data_length_code);
-
-                for (int i = 0; i < rx_frame.data_length_code; i++)
-                    dprintf("0x%02X ", rx_frame.data[i]);
-
-                dprintf("\n");
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
 }
 
 void timer_can_send(void *args)
@@ -242,10 +205,6 @@ void app_main()
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
 
-    int priority = 10;
-    xTaskCreatePinnedToCore(task_can_receive, "task_can_receive", 1024 * 5, NULL, priority, NULL, 1);
-    // xTaskCreatePinnedToCore(task_can_send, "task_can_send", 1024 * 5, NULL, priority, NULL, 1);
-
     esp_timer_create_args_t timer_can_send_args = {.callback = timer_can_send,
                                                    .arg = NULL,
                                                    .dispatch_method = ESP_TIMER_TASK,
@@ -285,7 +244,13 @@ void app_main()
         if (core3_bt_is_connected())
         {
             sprintf(print_buf, "Hello BLE Data %d\n", counter++);
-            core3_bt_send_data(print_buf);
+            core3_bt_send_data_len((uint8_t *)print_buf, strlen(print_buf));
+
+            core3_can_msg msg;
+            if (core3_can_rx_dequeue(&msg))
+            {
+                dprintf("Received CAN message!\n");
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(50));

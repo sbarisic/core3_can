@@ -47,6 +47,9 @@ extern "C"
     bool core3_can_receive(core3_can_msg *msg);
     bool core3_can_send(core3_can_msg *msg);
 
+    bool core3_can_rx_enqueue(core3_can_msg *msg);
+    bool core3_can_rx_dequeue(core3_can_msg *msg);
+
 #if defined(__cplusplus)
 }
 #endif

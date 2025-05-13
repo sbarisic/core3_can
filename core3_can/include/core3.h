@@ -33,6 +33,10 @@
 
 #define WS2812_PIN 4
 
+// Priorities
+#define CORE3_CAN_RECEIVE_PRIORITY 5
+#define CORE3_CAN_SEND_PRIORITY 4
+
 #if defined(__cplusplus)
 extern "C"
 {
