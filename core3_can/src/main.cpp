@@ -200,12 +200,14 @@ void app_main()
     gpio_set_direction(CAN_SE_PIN, GPIO_MODE_OUTPUT);
     gpio_set_level(CAN_SE_PIN, 0);
 
+    core3_flash_init();
+
     core3_bt_init();
 
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
 
-    esp_timer_create_args_t timer_can_send_args = {.callback = timer_can_send,
+    /*esp_timer_create_args_t timer_can_send_args = {.callback = timer_can_send,
                                                    .arg = NULL,
                                                    .dispatch_method = ESP_TIMER_TASK,
                                                    .name = "timer_can_send",
@@ -214,7 +216,7 @@ void app_main()
     esp_timer_handle_t task_can_send_timer;
     ESP_ERROR_CHECK(esp_timer_create(&timer_can_send_args, &task_can_send_timer));
 
-    esp_timer_start_periodic(task_can_send_timer, 1000 * 2);
+    esp_timer_start_periodic(task_can_send_timer, 1000 * 2);*/
 
     // print_runtime();
 

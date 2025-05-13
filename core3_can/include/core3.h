@@ -45,6 +45,8 @@ extern "C"
     void app_main();
     void core3_init();
 
+    bool core3_flash_init();
+
 #if defined(__cplusplus)
 }
 #endif
