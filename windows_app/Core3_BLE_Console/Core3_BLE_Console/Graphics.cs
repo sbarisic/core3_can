@@ -46,7 +46,9 @@ namespace Core3_BLE_Console {
 			}, (XX, YY) => {
 				int idx = YY * 10 + XX;
 
-				return new Color(255 - idx, 255 - idx, 255 - idx);
+				return Utils.LerpColor(Color.Red, Color.White, Color.Green, 0, 70, idx);
+
+				//return new Color(255 - idx, 255 - idx, 255 - idx);
 			});
 
 			Raylib.EndDrawing();

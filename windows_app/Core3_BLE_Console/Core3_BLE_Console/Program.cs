@@ -19,10 +19,11 @@ namespace Core3_BLE_Console {
 		static void Main(string[] args) {
 			Console.WriteLine("Starting");
 
-			Raylib.InitWindow(1920, 1080, "Core3");
+			Raylib.InitWindow(1680, 900, "Core3");
 			//Raylib.SetWindowState(ConfigFlags.Msaa4xHint);
 			//Raylib.SetWindowState(ConfigFlags.HighDpiWindow);
-			Raylib.SetTargetFPS(240);
+			Raylib.SetWindowState(ConfigFlags.VSyncHint);
+			//Raylib.SetTargetFPS(240);
 
 			Graphics.Init();
 
