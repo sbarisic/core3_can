@@ -41,12 +41,6 @@ enum
     SPP_IDX_SPP_STATUS_VAL,
     SPP_IDX_SPP_STATUS_CFG,
 
-#ifdef SUPPORT_HEARTBEAT
-    SPP_IDX_SPP_HEARTBEAT_CHAR,
-    SPP_IDX_SPP_HEARTBEAT_VAL,
-    SPP_IDX_SPP_HEARTBEAT_CFG,
-#endif
-
     SPP_IDX_NB,
 };
 
@@ -65,10 +59,6 @@ static const uint16_t spp_service_uuid = 0xABF0;
 #define ESP_GATT_UUID_SPP_COMMAND_NOTIFY 0xABF4
 
 #define SPP_GATT_MTU_SIZE (512)
-
-#ifdef SUPPORT_HEARTBEAT
-#define ESP_GATT_UUID_SPP_HEARTBEAT 0xABF5
-#endif
 
 #define BLUETOOTH_TASK_PINNED_TO_CORE (0)
 
@@ -171,17 +161,7 @@ static const uint16_t character_client_config_uuid = ESP_GATT_UUID_CHAR_CLIENT_C
 
 static const uint8_t char_prop_read_notify = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
 static const uint8_t char_prop_read_write = ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_READ;
-
-#ifdef CONFIG_EXAMPLE_SPP_THROUGHPUT
-static const uint8_t spp_data_notity_char_prop = char_prop_read_notify;
-#else
 static const uint8_t spp_data_notity_char_prop = ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_INDICATE;
-#endif
-
-#ifdef SUPPORT_HEARTBEAT
-static const uint8_t char_prop_read_write_notify =
-    ESP_GATT_CHAR_PROP_BIT_READ | ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_NOTIFY;
-#endif
 
 /// SPP Service - data receive characteristic, read&write without response
 static const uint16_t spp_data_receive_uuid = ESP_GATT_UUID_SPP_DATA_RECEIVE;
@@ -200,13 +180,6 @@ static const uint8_t spp_command_val[10] = {0x00};
 static const uint16_t spp_status_uuid = ESP_GATT_UUID_SPP_COMMAND_NOTIFY;
 static const uint8_t spp_status_val[10] = {0x00};
 static const uint8_t spp_status_ccc[2] = {0x00, 0x00};
-
-#ifdef SUPPORT_HEARTBEAT
-/// SPP Server - Heart beat characteristic, notify&write&read
-static const uint16_t spp_heart_beat_uuid = ESP_GATT_UUID_SPP_HEARTBEAT;
-static const uint8_t spp_heart_beat_val[2] = {0x00, 0x00};
-static const uint8_t spp_heart_beat_ccc[2] = {0x00, 0x00};
-#endif
 
 /// Full HRS Database Description - Used to add attributes into the database
 static const esp_gatts_attr_db_t spp_gatt_db[SPP_IDX_NB] = {
@@ -269,26 +242,6 @@ static const esp_gatts_attr_db_t spp_gatt_db[SPP_IDX_NB] = {
                                 {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid,
                                  ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, sizeof(uint16_t), sizeof(spp_status_ccc),
                                  (uint8_t *)spp_status_ccc}},
-
-#ifdef SUPPORT_HEARTBEAT
-    // SPP -  Heart beat characteristic Declaration
-    [SPP_IDX_SPP_HEARTBEAT_CHAR] = {{ESP_GATT_AUTO_RSP},
-                                    {ESP_UUID_LEN_16, (uint8_t *)&character_declaration_uuid, ESP_GATT_PERM_READ,
-                                     CHAR_DECLARATION_SIZE, CHAR_DECLARATION_SIZE,
-                                     (uint8_t *)&char_prop_read_write_notify}},
-
-    // SPP -  Heart beat characteristic Value
-    [SPP_IDX_SPP_HEARTBEAT_VAL] = {{ESP_GATT_AUTO_RSP},
-                                   {ESP_UUID_LEN_16, (uint8_t *)&spp_heart_beat_uuid,
-                                    ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, sizeof(spp_heart_beat_val),
-                                    sizeof(spp_heart_beat_val), (uint8_t *)spp_heart_beat_val}},
-
-    // SPP -  Heart beat characteristic - Client Characteristic Configuration Descriptor
-    [SPP_IDX_SPP_HEARTBEAT_CFG] = {{ESP_GATT_AUTO_RSP},
-                                   {ESP_UUID_LEN_16, (uint8_t *)&character_client_config_uuid,
-                                    ESP_GATT_PERM_READ | ESP_GATT_PERM_WRITE, sizeof(uint16_t),
-                                    sizeof(spp_data_notify_ccc), (uint8_t *)spp_heart_beat_ccc}},
-#endif
 };
 
 static void free_write_buffer(void)
@@ -375,9 +328,11 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         esp_ble_gap_config_adv_data_raw((uint8_t *)spp_adv_data, sizeof(spp_adv_data));
         esp_ble_gatts_create_attr_tab(spp_gatt_db, gatts_if, SPP_IDX_NB, SPP_SVC_INST_ID);
         break;
+
     case ESP_GATTS_READ_EVT:
         dprintf("Characteristic read\n");
         break;
+
     case ESP_GATTS_WRITE_EVT: {
 
         // ESP_LOGI(GATTS_TABLE_TAG, "Characteristic write, conn_id %d, handle %d", param->write.conn_id,
@@ -406,70 +361,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         }
 
         break;
-
-        /*res = find_char_and_desr_index(p_data->write.handle);
-        if (p_data->write.is_prep == false)
-        {
-            if (res == SPP_IDX_SPP_COMMAND_VAL)
-            {
-                uint8_t *spp_cmd_buff = NULL;
-                spp_cmd_buff = (uint8_t *)malloc((spp_mtu_size - 3) * sizeof(uint8_t));
-                if (spp_cmd_buff == NULL)
-                {
-                    dprintf("%s malloc failed\n", __func__);
-                    break;
-                }
-                memset(spp_cmd_buff, 0x0, (spp_mtu_size - 3));
-                memcpy(spp_cmd_buff, p_data->write.value, p_data->write.len);
-                xQueueSend(cmd_cmd_queue, &spp_cmd_buff, 10 / portTICK_PERIOD_MS);
-            }
-            else if (res == SPP_IDX_SPP_DATA_NTF_CFG)
-            {
-                if ((p_data->write.len == 2) && (p_data->write.value[0] == 0x01) && (p_data->write.value[1] == 0x00))
-                {
-                    dprintf("SPP data notification enable\n");
-                    enable_data_ntf = true;
-                }
-                else if ((p_data->write.len == 2) && (p_data->write.value[0] == 0x02) &&
-                         (p_data->write.value[1] == 0x00))
-                {
-                    dprintf("SPP data indication enable\n");
-                    enable_data_ntf = true;
-                }
-                else if ((p_data->write.len == 2) && (p_data->write.value[0] == 0x00) &&
-                         (p_data->write.value[1] == 0x00))
-                {
-                    dprintf("SPP data notification/indication disable\n");
-                    enable_data_ntf = false;
-                }
-            }
-            else if (res == SPP_IDX_SPP_STATUS_CFG)
-            {
-                if ((p_data->write.len == 2) && (p_data->write.value[0] == 0x01) && (p_data->write.value[1] == 0x00))
-                {
-                    dprintf("SPP status notification enable\n");
-                }
-                else if ((p_data->write.len == 2) && (p_data->write.value[0] == 0x00) &&
-                         (p_data->write.value[1] == 0x00))
-                {
-                    dprintf("SPP status notification disable\n");
-                }
-            }
-            else if (res == SPP_IDX_SPP_DATA_RECV_VAL)
-            {
-                uart_write_bytes(UART_NUM_0, (char *)(p_data->write.value), p_data->write.len);
-            }
-            else
-            {
-                // TODO:
-            }
-        }
-        else if ((p_data->write.is_prep == true) && (res == SPP_IDX_SPP_DATA_RECV_VAL))
-        {
-            store_wr_buffer(p_data);
-        }
-        break;*/
     }
+
     case ESP_GATTS_EXEC_WRITE_EVT: {
         dprintf("Execute write\n");
         if (p_data->exec_write.exec_write_flag)
@@ -479,6 +372,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         }
         break;
     }
+
     case ESP_GATTS_RESPONSE_EVT:
         break;
 
@@ -515,11 +409,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         spp_gatts_if = gatts_if;
         is_connected = true;
         memcpy(&spp_remote_bda, &p_data->connect.remote_bda, sizeof(esp_bd_addr_t));
-#ifdef SUPPORT_HEARTBEAT
-        uint16_t cmd = 0;
-        xQueueSend(cmd_heartbeat_queue, &cmd, 10 / portTICK_PERIOD_MS);
-#endif
         break;
+
     case ESP_GATTS_DISCONNECT_EVT:
         dprintf("Disconnected, remote " ESP_BD_ADDR_STR ", reason 0x%02x\n",
                 ESP_BD_ADDR_HEX(param->disconnect.remote_bda), param->disconnect.reason);
@@ -527,22 +418,25 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         spp_mtu_size = 23;
         is_connected = false;
         enable_data_ntf = false;
-#ifdef SUPPORT_HEARTBEAT
-        enable_heart_ntf = false;
-        heartbeat_count_num = 0;
-#endif
+
         esp_ble_gap_start_advertising(&spp_adv_params);
         break;
+
     case ESP_GATTS_OPEN_EVT:
         break;
+
     case ESP_GATTS_CANCEL_OPEN_EVT:
         break;
+
     case ESP_GATTS_CLOSE_EVT:
         break;
+
     case ESP_GATTS_LISTEN_EVT:
         break;
+
     case ESP_GATTS_CONGEST_EVT:
         break;
+
     case ESP_GATTS_CREAT_ATTR_TAB_EVT: {
         dprintf("The number handle %x\n", param->add_attr_tab.num_handle);
 
@@ -563,6 +457,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 
         break;
     }
+
     default:
         break;
     }
@@ -621,21 +516,6 @@ bool core3_bt_send_data_len(uint8_t *dat, int len)
 
     return true;
 }
-
-/*void core3_bt_send_data(const char *dat)
-{
-    if (!is_connected)
-    {
-        return;
-    }
-
-    size_t len = strlen(dat);
-
-    // esp_ble_gatts_send_indicate()
-
-    esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], len,
-                                (uint8_t *)dat, false);
-}*/
 
 bool core3_bt_is_connected()
 {
