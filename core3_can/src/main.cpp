@@ -1,4 +1,5 @@
 #include <core3.h>
+#include <core3_flash.h>
 #include <core3_can.h>
 #include <core3_gmlan.h>
 #include <core3_gpio.h>
@@ -232,9 +233,6 @@ void app_main()
 
     print_runtime();*/
 
-    int counter = 0;
-    char print_buf[512];
-
     dprintf("Done!\n");
     while (true)
     {
@@ -245,9 +243,6 @@ void app_main()
 
         if (core3_bt_is_connected())
         {
-            //sprintf(print_buf, "Hello BLE Data %d\n", counter++);
-            //core3_bt_send_data_len((uint8_t *)print_buf, strlen(print_buf));
-
             core3_can_msg msg;
             if (core3_can_rx_dequeue(&msg))
             {

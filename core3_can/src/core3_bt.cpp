@@ -1,5 +1,6 @@
 #include <core3.h>
 #include <core3_bt.h>
+#include <core3_flash.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -83,8 +84,6 @@ static uint16_t spp_mtu_size = SPP_GATT_MTU_SIZE;
 static uint16_t spp_conn_id = 0xffff;
 static esp_gatt_if_t spp_gatts_if = 0xff;
 
-static QueueHandle_t cmd_cmd_queue = NULL;
-
 static bool enable_data_ntf = false;
 static bool is_connected = false;
 static esp_bd_addr_t spp_remote_bda = {
@@ -97,6 +96,7 @@ static esp_ble_adv_params_t spp_adv_params = {.adv_int_min = 0x20,
                                               .adv_int_max = 0x40,
                                               .adv_type = ADV_TYPE_IND,
                                               .own_addr_type = BLE_ADDR_TYPE_PUBLIC,
+                                              .peer_addr = 0,
                                               .peer_addr_type = BLE_ADDR_TYPE_PUBLIC,
                                               .channel_map = ADV_CHNL_ALL,
                                               .adv_filter_policy = ADV_FILTER_ALLOW_SCAN_ANY_CON_ANY};
@@ -146,6 +146,16 @@ static struct gatts_profile_inst spp_profile_tab[SPP_PROFILE_NUM] = {
         {
             .gatts_cb = gatts_profile_event_handler,
             .gatts_if = ESP_GATT_IF_NONE, /* Not get the gatt_if, so initial is ESP_GATT_IF_NONE */
+            .app_id = 0,
+            .conn_id = 0,
+            .service_handle = 0,
+            .service_id = {.id = {.uuid = {.len = 0, .uuid = {.uuid16 = 0}}, .inst_id = 0}, .is_primary = 0},
+            .char_handle = 0,
+            .char_uuid = {.len = 0, .uuid = {.uuid16 = 0}},
+            .perm = 0,
+            .property = 0,
+            .descr_handle = 0,
+            .descr_uuid = {.len = 0, .uuid = {.uuid16 = 0}},
         },
 };
 
@@ -336,8 +346,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         }
         dprintf("Advertising stop successfully\n");
         break;
-    case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
-    {
+    case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT: {
 
         dprintf("Connection params update, status %d, conn_int %d, latency %d, timeout %d\n",
                 param->update_conn_params.status, param->update_conn_params.conn_int, param->update_conn_params.latency,
@@ -354,7 +363,6 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                                         esp_ble_gatts_cb_param_t *param)
 {
     esp_ble_gatts_cb_param_t *p_data = (esp_ble_gatts_cb_param_t *)param;
-    uint8_t res = 0xff;
 
     // dprintf(">> gatts_profile_event_handler event %d\n", event);
 
@@ -370,16 +378,16 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     case ESP_GATTS_READ_EVT:
         dprintf("Characteristic read\n");
         break;
-    case ESP_GATTS_WRITE_EVT:
-    {
+    case ESP_GATTS_WRITE_EVT: {
 
         // ESP_LOGI(GATTS_TABLE_TAG, "Characteristic write, conn_id %d, handle %d", param->write.conn_id,
         // param->write.handle);
-        dprintf("Characteristic write, conn_id %d, handle %d, len %d\n", param->write.conn_id, param->write.handle, param->write.len);
+        dprintf("Characteristic write, conn_id %d, handle %d, len %d\n", param->write.conn_id, param->write.handle,
+                param->write.len);
 
         btDataStruc btData;
 
-        if (param->write.len >= 34)
+        if (param->write.len >= sizeof(btDataStruc))
         {
             memcpy(&btData, param->write.value, sizeof(btDataStruc));
             dprintf("Got btData ID %d\n", btData.ID);
@@ -462,8 +470,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         }
         break;*/
     }
-    case ESP_GATTS_EXEC_WRITE_EVT:
-    {
+    case ESP_GATTS_EXEC_WRITE_EVT: {
         dprintf("Execute write\n");
         if (p_data->exec_write.exec_write_flag)
         {
@@ -536,8 +543,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
     case ESP_GATTS_CONGEST_EVT:
         break;
-    case ESP_GATTS_CREAT_ATTR_TAB_EVT:
-    {
+    case ESP_GATTS_CREAT_ATTR_TAB_EVT: {
         dprintf("The number handle %x\n", param->add_attr_tab.num_handle);
 
         if (param->add_attr_tab.status != ESP_GATT_OK)

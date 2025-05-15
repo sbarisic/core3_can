@@ -1,17 +1,13 @@
 #include <core3.h>
-#include <core3_can.h>
-#include <ecumaster.h>
-#include <core3_gmlan.h>
+#include <core3_flash.h>
 
-#include "driver/gpio.h"
-#include "driver/twai.h"
-
-#include "spi_flash_mmap.h"
 #include "esp_partition.h"
+#include "spi_flash_mmap.h"
 
 static size_t mem_size = 0x10000;
 static esp_partition_mmap_handle_t part_mmap_handle;
 static const esp_partition_t *cal_part;
+
 static const void *cal_memory;
 
 const void *core3_flash_cal_offset(size_t offset)
@@ -50,7 +46,8 @@ bool core3_flash_cal_write(size_t offset, const void *src, size_t size)
 
 bool core3_flash_map()
 {
-    esp_err_t err = esp_partition_mmap(cal_part, 0x0, mem_size, ESP_PARTITION_MMAP_DATA, &cal_memory, &part_mmap_handle);
+    esp_err_t err =
+        esp_partition_mmap(cal_part, 0x0, mem_size, ESP_PARTITION_MMAP_DATA, &cal_memory, &part_mmap_handle);
 
     if (err != ESP_OK)
     {
