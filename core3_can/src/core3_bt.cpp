@@ -1,3 +1,4 @@
+#include <core3.h>
 #include <core3_bt.h>
 
 #include <stdio.h>
@@ -280,62 +281,6 @@ static const esp_gatts_attr_db_t spp_gatt_db[SPP_IDX_NB] = {
 #endif
 };
 
-static uint8_t find_char_and_desr_index(uint16_t handle)
-{
-    uint8_t error = 0xff;
-
-    for (int i = 0; i < SPP_IDX_NB; i++)
-    {
-        if (handle == spp_handle_table[i])
-        {
-            return i;
-        }
-    }
-
-    return error;
-}
-
-static bool store_wr_buffer(esp_ble_gatts_cb_param_t *p_data)
-{
-    temp_spp_recv_data_node_p1 = (spp_receive_data_node_t *)malloc(sizeof(spp_receive_data_node_t));
-
-    if (temp_spp_recv_data_node_p1 == NULL)
-    {
-        dprintf("malloc error %s %d\n", __func__, __LINE__);
-        return false;
-    }
-    if (temp_spp_recv_data_node_p2 != NULL)
-    {
-        temp_spp_recv_data_node_p2->next_node = temp_spp_recv_data_node_p1;
-    }
-    temp_spp_recv_data_node_p1->len = p_data->write.len;
-    SppRecvDataBuff.buff_size += p_data->write.len;
-    temp_spp_recv_data_node_p1->next_node = NULL;
-    temp_spp_recv_data_node_p1->node_buff = (uint8_t *)malloc(p_data->write.len);
-    temp_spp_recv_data_node_p2 = temp_spp_recv_data_node_p1;
-    if (temp_spp_recv_data_node_p1->node_buff == NULL)
-    {
-        dprintf("malloc error %s %d\n", __func__, __LINE__);
-        temp_spp_recv_data_node_p1->len = 0;
-    }
-    else
-    {
-        memcpy(temp_spp_recv_data_node_p1->node_buff, p_data->write.value, p_data->write.len);
-    }
-
-    if (SppRecvDataBuff.node_num == 0)
-    {
-        SppRecvDataBuff.first_node = temp_spp_recv_data_node_p1;
-        SppRecvDataBuff.node_num++;
-    }
-    else
-    {
-        SppRecvDataBuff.node_num++;
-    }
-
-    return true;
-}
-
 static void free_write_buffer(void)
 {
     temp_spp_recv_data_node_p1 = SppRecvDataBuff.first_node;
@@ -391,7 +336,8 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         }
         dprintf("Advertising stop successfully\n");
         break;
-    case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT: {
+    case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
+    {
 
         dprintf("Connection params update, status %d, conn_int %d, latency %d, timeout %d\n",
                 param->update_conn_params.status, param->update_conn_params.conn_int, param->update_conn_params.latency,
@@ -410,7 +356,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     esp_ble_gatts_cb_param_t *p_data = (esp_ble_gatts_cb_param_t *)param;
     uint8_t res = 0xff;
 
-    dprintf(">> gatts_profile_event_handler event %d\n", event);
+    // dprintf(">> gatts_profile_event_handler event %d\n", event);
 
     switch (event)
     {
@@ -424,14 +370,36 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     case ESP_GATTS_READ_EVT:
         dprintf("Characteristic read\n");
         break;
-    case ESP_GATTS_WRITE_EVT: {
+    case ESP_GATTS_WRITE_EVT:
+    {
 
         // ESP_LOGI(GATTS_TABLE_TAG, "Characteristic write, conn_id %d, handle %d", param->write.conn_id,
         // param->write.handle);
-        dprintf("Characteristic write, conn_id %d, handle %d, len %d = '%s'\n", param->write.conn_id,
-                param->write.handle, param->write.len, (const char *)param->write.value);
+        dprintf("Characteristic write, conn_id %d, handle %d, len %d\n", param->write.conn_id, param->write.handle, param->write.len);
 
-        res = find_char_and_desr_index(p_data->write.handle);
+        btDataStruc btData;
+
+        if (param->write.len >= 34)
+        {
+            memcpy(&btData, param->write.value, sizeof(btDataStruc));
+            dprintf("Got btData ID %d\n", btData.ID);
+
+            if (btData.ID == btDataID_CAL_READ && btData.Data2 < 0xFF)
+            {
+                btDataStruc btResponse;
+                btResponse.ID = btDataID_CAL_RESP;
+                btResponse.Counter = btData.Counter;
+
+                const void *flash_mem = core3_flash_cal_offset(btData.Data1);
+                memcpy(&btResponse.Data, flash_mem, btData.Data2);
+
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+            }
+        }
+
+        break;
+
+        /*res = find_char_and_desr_index(p_data->write.handle);
         if (p_data->write.is_prep == false)
         {
             if (res == SPP_IDX_SPP_COMMAND_VAL)
@@ -492,9 +460,10 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         {
             store_wr_buffer(p_data);
         }
-        break;
+        break;*/
     }
-    case ESP_GATTS_EXEC_WRITE_EVT: {
+    case ESP_GATTS_EXEC_WRITE_EVT:
+    {
         dprintf("Execute write\n");
         if (p_data->exec_write.exec_write_flag)
         {
@@ -567,7 +536,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
     case ESP_GATTS_CONGEST_EVT:
         break;
-    case ESP_GATTS_CREAT_ATTR_TAB_EVT: {
+    case ESP_GATTS_CREAT_ATTR_TAB_EVT:
+    {
         dprintf("The number handle %x\n", param->add_attr_tab.num_handle);
 
         if (param->add_attr_tab.status != ESP_GATT_OK)

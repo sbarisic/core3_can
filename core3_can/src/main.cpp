@@ -245,8 +245,8 @@ void app_main()
 
         if (core3_bt_is_connected())
         {
-            sprintf(print_buf, "Hello BLE Data %d\n", counter++);
-            core3_bt_send_data_len((uint8_t *)print_buf, strlen(print_buf));
+            //sprintf(print_buf, "Hello BLE Data %d\n", counter++);
+            //core3_bt_send_data_len((uint8_t *)print_buf, strlen(print_buf));
 
             core3_can_msg msg;
             if (core3_can_rx_dequeue(&msg))

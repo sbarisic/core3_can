@@ -14,6 +14,14 @@ static esp_partition_mmap_handle_t part_mmap_handle;
 static const esp_partition_t *cal_part;
 static const void *cal_memory;
 
+const void *core3_flash_cal_offset(size_t offset)
+{
+    if (offset == 0)
+        return cal_memory;
+
+    return (const void *)(((size_t)cal_memory) + offset);
+}
+
 bool core3_flash_cal_erase()
 {
     esp_err_t err = esp_partition_erase_range(cal_part, 0x0, mem_size);

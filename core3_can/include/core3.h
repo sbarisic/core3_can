@@ -45,7 +45,9 @@ extern "C"
     void app_main();
     void core3_init();
 
+    const void *core3_flash_cal_offset(size_t offset);
     bool core3_flash_init();
+
 
 #if defined(__cplusplus)
 }
