@@ -3,20 +3,29 @@
 using Raylib_cs;
 
 namespace Core3_BLE_Console {
-	internal class Program {
+	class Program {
+		public static int WinWidth;
+		public static int WinHeight;
+
 		static void Main(string[] args) {
 			Console.WriteLine("Starting");
 
-			Raylib.InitWindow(1680, 900, "Core3");
+			WinWidth = 1680;
+			WinHeight = 900;
+
+			Raylib.InitWindow(WinWidth, WinHeight, "Core3");
+			Raylib.SetExitKey(KeyboardKey.Null);
 			//Raylib.SetWindowState(ConfigFlags.Msaa4xHint);
 			//Raylib.SetWindowState(ConfigFlags.HighDpiWindow);
 			Raylib.SetWindowState(ConfigFlags.VSyncHint);
 			//Raylib.SetTargetFPS(240);
 
-			Graphics.Init();
 			Bluetooth.DoBluetooth();
+			Graphics.Init();
+
 
 			while (!Raylib.WindowShouldClose()) {
+				Graphics.Update();
 				Graphics.Draw();
 			}
 

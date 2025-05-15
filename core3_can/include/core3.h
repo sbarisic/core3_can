@@ -33,9 +33,33 @@
 
 #define WS2812_PIN 4
 
+#define GPIO0 GPIO_NUM_18
+#define GPIO1 GPIO_NUM_34 // ADC1_CH6
+#define GPIO2 GPIO_NUM_5
+#define GPIO3 GPIO_NUM_32 // ADC1_CH4
+#define GPIO4 GPIO_NUM_35 // ADC1_CH7
+#define GPIO5 GPIO_NUM_12 // ADC2_CH5
+#define GPIO6 GPIO_NUM_33 // ADC1_CH5
+#define GPIO7 GPIO_NUM_25 // ADC2_CH8
+
+#define GPIOA0 GPIO1
+#define GPIOA1 GPIO3
+#define GPIOA2 GPIO4
+#define GPIOA3 GPIO6
+#define GPIOA4 GPIO7
+#define GPIOA5 GPIO5
+
+#define GPIOA0_CH ADC_CHANNEL_6
+#define GPIOA1_CH ADC_CHANNEL_4
+#define GPIOA2_CH ADC_CHANNEL_7
+#define GPIOA3_CH ADC_CHANNEL_5
+#define GPIOA4_CH ADC_CHANNEL_8
+#define GPIOA5_CH ADC_CHANNEL_5
+
 // Priorities
-#define CORE3_CAN_RECEIVE_PRIORITY 5
+#define CORE3_PROGRAM_PRIORITY 3
 #define CORE3_CAN_SEND_PRIORITY 4
+#define CORE3_CAN_RECEIVE_PRIORITY 5
 
 #if defined(__cplusplus)
 extern "C"
@@ -44,6 +68,7 @@ extern "C"
 
     void app_main();
     void core3_init();
+    size_t core3_round_up(size_t numToRound, size_t multiple);
     
 #if defined(__cplusplus)
 }

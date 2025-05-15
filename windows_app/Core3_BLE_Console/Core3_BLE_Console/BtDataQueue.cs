@@ -10,28 +10,26 @@ namespace Core3_BLE_Console {
 		CAL_READ = 0x1, // uint32_T Data1 - Offset, uint32_t Data2 - Length
 		CAL_READ_RESP = 0x2, // 32 bytes of data
 
+		CAL_WRITE,
+		CAL_WRITE_RESP,
+
+		CAL_ERASE,
+		CAL_ERASE_RESP,
+
 		RAM_READ,
 		RAM_READ_RESP,
-
-
 	}
 
-	[StructLayout(LayoutKind.Explicit, Pack = 1)]
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
 	unsafe struct BtData {
-		[FieldOffset(0)]
 		public IDType ID;
-
-		[FieldOffset(1)]
 		public byte Counter;
 
-		[FieldOffset(2)]
+		public uint Data1;
+		public uint Data2;
+
 		public fixed byte Data[32];
 
-		[FieldOffset(2)]
-		public uint Data1;
-
-		[FieldOffset(2 + sizeof(uint))]
-		public uint Data2;
 	}
 
 	delegate void BtSendFunc(byte[] SendBytes);
@@ -83,7 +81,7 @@ namespace Core3_BLE_Console {
 					DataArr[i] = Return.Data[i];
 				}
 
-				Commands.Ret_CalResp(Orig.Data1, Orig.Data2, DataArr);
+				Commands.Ret_CalReadResp(Orig.Counter, Orig.Data1, Orig.Data2, DataArr);
 			}
 
 			return false;

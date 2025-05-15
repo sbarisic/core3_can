@@ -114,17 +114,12 @@ typedef struct spp_receive_data_node
     struct spp_receive_data_node *next_node;
 } spp_receive_data_node_t;
 
-static spp_receive_data_node_t *temp_spp_recv_data_node_p1 = NULL;
-static spp_receive_data_node_t *temp_spp_recv_data_node_p2 = NULL;
-
 typedef struct spp_receive_data_buff
 {
     int32_t node_num;
     int32_t buff_size;
     spp_receive_data_node_t *first_node;
 } spp_receive_data_buff_t;
-
-static spp_receive_data_buff_t SppRecvDataBuff = {.node_num = 0, .buff_size = 0, .first_node = NULL};
 
 static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if,
                                         esp_ble_gatts_cb_param_t *param);
@@ -244,37 +239,6 @@ static const esp_gatts_attr_db_t spp_gatt_db[SPP_IDX_NB] = {
                                  (uint8_t *)spp_status_ccc}},
 };
 
-static void free_write_buffer(void)
-{
-    temp_spp_recv_data_node_p1 = SppRecvDataBuff.first_node;
-
-    while (temp_spp_recv_data_node_p1 != NULL)
-    {
-        temp_spp_recv_data_node_p2 = temp_spp_recv_data_node_p1->next_node;
-        if (temp_spp_recv_data_node_p1->node_buff)
-        {
-            free(temp_spp_recv_data_node_p1->node_buff);
-        }
-        free(temp_spp_recv_data_node_p1);
-        temp_spp_recv_data_node_p1 = temp_spp_recv_data_node_p2;
-    }
-
-    SppRecvDataBuff.node_num = 0;
-    SppRecvDataBuff.buff_size = 0;
-    SppRecvDataBuff.first_node = NULL;
-}
-
-static void print_write_buffer(void)
-{
-    temp_spp_recv_data_node_p1 = SppRecvDataBuff.first_node;
-
-    while (temp_spp_recv_data_node_p1 != NULL)
-    {
-        uart_write_bytes(UART_NUM_0, (char *)(temp_spp_recv_data_node_p1->node_buff), temp_spp_recv_data_node_p1->len);
-        temp_spp_recv_data_node_p1 = temp_spp_recv_data_node_p1->next_node;
-    }
-}
-
 static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
 {
     switch (event)
@@ -286,22 +250,23 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
         // advertising start complete event to indicate advertising start successfully or failed
         if (param->adv_start_cmpl.status != ESP_BT_STATUS_SUCCESS)
         {
-            dprintf("Advertising start failed, status %d\n", param->adv_start_cmpl.status);
+            dprintf("[Bluetooth] Advert start failed, status %d\n", param->adv_start_cmpl.status);
             break;
         }
-        dprintf("Advertising start successfully\n");
+        dprintf("[Bluetooth] Advert start success\n");
         break;
     case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
         if (param->adv_start_cmpl.status != ESP_BT_STATUS_SUCCESS)
         {
-            dprintf("Advertising stop failed, status %d\n", param->adv_stop_cmpl.status);
+            dprintf("[Bluetooth] Advert stop failed, status %d\n", param->adv_stop_cmpl.status);
             break;
         }
-        dprintf("Advertising stop successfully\n");
+        dprintf("[Bluetooth] Advert stop success\n");
         break;
-    case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT: {
+    case ESP_GAP_BLE_UPDATE_CONN_PARAMS_EVT:
+    {
 
-        dprintf("Connection params update, status %d, conn_int %d, latency %d, timeout %d\n",
+        dprintf("[Bluetooth] Conn params update, status %d, conn_int %d, latency %d, timeout %d\n",
                 param->update_conn_params.status, param->update_conn_params.conn_int, param->update_conn_params.latency,
                 param->update_conn_params.timeout);
 
@@ -322,7 +287,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     switch (event)
     {
     case ESP_GATTS_REG_EVT:
-        dprintf("GATT server register, status %d, app_id %d, gatts_if %d\n", param->reg.status, param->reg.app_id,
+        dprintf("[Bluetooth] GATT srv register, status %d, app_id %d, gatts_if %d\n", param->reg.status, param->reg.app_id,
                 gatts_if);
         esp_ble_gap_set_device_name(SAMPLE_DEVICE_NAME);
         esp_ble_gap_config_adv_data_raw((uint8_t *)spp_adv_data, sizeof(spp_adv_data));
@@ -330,31 +295,51 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
 
     case ESP_GATTS_READ_EVT:
-        dprintf("Characteristic read\n");
         break;
 
-    case ESP_GATTS_WRITE_EVT: {
+    case ESP_GATTS_WRITE_EVT:
+    {
 
         // ESP_LOGI(GATTS_TABLE_TAG, "Characteristic write, conn_id %d, handle %d", param->write.conn_id,
         // param->write.handle);
-        dprintf("Characteristic write, conn_id %d, handle %d, len %d\n", param->write.conn_id, param->write.handle,
-                param->write.len);
+        // dprintf("[Bluetooth] Characteristic write, conn_id %d, handle %d, len %d\n", param->write.conn_id, param->write.handle,
+        //        param->write.len);
 
         btDataStruc btData;
 
         if (param->write.len >= sizeof(btDataStruc))
         {
             memcpy(&btData, param->write.value, sizeof(btDataStruc));
-            dprintf("Got btData ID %d\n", btData.ID);
+            //dprintf("Got btData ID %d\n", btData.ID);
 
             if (btData.ID == btDataID_CAL_READ && btData.Data2 < 0xFF)
             {
                 btDataStruc btResponse;
-                btResponse.ID = btDataID_CAL_RESP;
+                btResponse.ID = btDataID_CAL_READ_RESP;
                 btResponse.Counter = btData.Counter;
+                btResponse.Data1 = btData.Data1;
+                btResponse.Data2 = btData.Data2;
 
                 const void *flash_mem = core3_flash_cal_offset(btData.Data1);
                 memcpy(&btResponse.Data, flash_mem, btData.Data2);
+
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+            }
+            else if (btData.ID == btDataID_CAL_WRITE && btData.Data2 < 0xFF)
+            {
+                btDataStruc btResponse;
+                btResponse.ID = btDataID_CAL_WRITE_RESP;
+                btResponse.Counter = btData.Counter;
+                btResponse.Data1 = core3_flash_cal_write(btData.Data1, &btData.Data[0], btData.Data2) ? 0x1 : 0x0;
+
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+            }
+            else if (btData.ID == btDataID_CAL_ERASE)
+            {
+                btDataStruc btResponse;
+                btResponse.ID = btDataID_CAL_ERASE_RESP;
+                btResponse.Counter = btData.Counter;
+                btResponse.Data1 = core3_flash_cal_erase(btData.Data1, btData.Data2);
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
             }
@@ -363,29 +348,18 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
     }
 
-    case ESP_GATTS_EXEC_WRITE_EVT: {
-        dprintf("Execute write\n");
-        if (p_data->exec_write.exec_write_flag)
-        {
-            print_write_buffer();
-            free_write_buffer();
-        }
+    case ESP_GATTS_EXEC_WRITE_EVT:
         break;
-    }
 
     case ESP_GATTS_RESPONSE_EVT:
         break;
 
     case ESP_GATTS_MTU_EVT:
-        dprintf("MTU exchange, MTU %d\n", param->mtu.mtu);
+        dprintf("[Bluetooth] MTU exchange, MTU %d\n", param->mtu.mtu);
         spp_mtu_size = p_data->mtu.mtu;
         break;
 
     case ESP_GATTS_CONF_EVT:
-        if (param->conf.status)
-        {
-            dprintf("Confirm received, status %d, handle %d\n", param->conf.status, param->conf.handle);
-        }
         break;
 
     case ESP_GATTS_UNREG_EVT:
@@ -395,14 +369,13 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
 
     case ESP_GATTS_START_EVT:
-        dprintf("Service start, status %d, service_handle %d\n", param->start.status, param->start.service_handle);
         break;
 
     case ESP_GATTS_STOP_EVT:
         break;
 
     case ESP_GATTS_CONNECT_EVT:
-        dprintf("Connected, conn_id %u, remote " ESP_BD_ADDR_STR "\n", param->connect.conn_id,
+        dprintf("[Bluetooth] Connected, conn_id %u, remote " ESP_BD_ADDR_STR "\n", param->connect.conn_id,
                 ESP_BD_ADDR_HEX(param->connect.remote_bda));
 
         spp_conn_id = p_data->connect.conn_id;
@@ -412,7 +385,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         break;
 
     case ESP_GATTS_DISCONNECT_EVT:
-        dprintf("Disconnected, remote " ESP_BD_ADDR_STR ", reason 0x%02x\n",
+        dprintf("[Bluetooth] Disconnected, remote " ESP_BD_ADDR_STR ", reason 0x%02x\n",
                 ESP_BD_ADDR_HEX(param->disconnect.remote_bda), param->disconnect.reason);
 
         spp_mtu_size = 23;
@@ -437,16 +410,17 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
     case ESP_GATTS_CONGEST_EVT:
         break;
 
-    case ESP_GATTS_CREAT_ATTR_TAB_EVT: {
-        dprintf("The number handle %x\n", param->add_attr_tab.num_handle);
+    case ESP_GATTS_CREAT_ATTR_TAB_EVT:
+    {
+        dprintf("[Bluetooth] The number handle 0x%x\n", param->add_attr_tab.num_handle);
 
         if (param->add_attr_tab.status != ESP_GATT_OK)
         {
-            dprintf("Create attribute table failed, error code 0x%x\n", param->add_attr_tab.status);
+            dprintf("[Bluetooth] Create attribute table failed, error code 0x%x\n", param->add_attr_tab.status);
         }
         else if (param->add_attr_tab.num_handle != SPP_IDX_NB)
         {
-            dprintf("Create attribute table abnormally, num_handle (%d) doesn't equal to HRS_IDX_NB(%d)\n",
+            dprintf("[Bluetooth] Create attr table abnormally, num_handle (%d) doesn't equal to HRS_IDX_NB(%d)\n",
                     param->add_attr_tab.num_handle, SPP_IDX_NB);
         }
         else
@@ -474,7 +448,7 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
         }
         else
         {
-            dprintf("Reg app failed, app_id %04x, status %d\n", param->reg.app_id, param->reg.status);
+            dprintf("[Bluetooth] Reg app failed, app_id %04x, status %d\n", param->reg.app_id, param->reg.status);
             return;
         }
     }
@@ -529,7 +503,7 @@ esp_err_t core3_bt_init()
     err = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
     if (err != ESP_OK)
     {
-        dprintf("esp_bt_init - esp_bt_controller_mem_release FAILED\n");
+        dprintf("[Bluetooth] esp_bt_controller_mem_release FAILED\n");
         return err;
     }
 
@@ -537,14 +511,14 @@ esp_err_t core3_bt_init()
     err = esp_bt_controller_init(&bt_cfg);
     if (err != ESP_OK)
     {
-        dprintf("esp_bt_init - esp_bt_controller_init FAILED\n");
+        dprintf("[Bluetooth] esp_bt_controller_init FAILED\n");
         return err;
     }
 
     err = esp_bt_controller_enable(ESP_BT_MODE_BLE);
     if (err != ESP_OK)
     {
-        dprintf("esp_bt_init - esp_bt_controller_enable FAILED\n");
+        dprintf("[Bluetooth] esp_bt_controller_enable FAILED\n");
         return err;
     }
 
@@ -554,14 +528,14 @@ esp_err_t core3_bt_init()
     err = esp_bluedroid_init_with_cfg(&bluedroid_cfg);
     if (err != ESP_OK)
     {
-        dprintf("esp_bt_init - esp_bluedroid_init_with_cfg FAILED\n");
+        dprintf("[Bluetooth] esp_bluedroid_init_with_cfg FAILED\n");
         return err;
     }
 
     err = esp_bluedroid_enable();
     if (err != ESP_OK)
     {
-        dprintf("esp_bt_init - esp_bluedroid_enable FAILED\n");
+        dprintf("[Bluetooth] esp_bluedroid_enable FAILED\n");
         return err;
     }
 
@@ -572,10 +546,10 @@ esp_err_t core3_bt_init()
     err = esp_ble_gatt_set_local_mtu(SPP_GATT_MTU_SIZE);
     if (err != ESP_OK)
     {
-        dprintf("esp_bt_init - esp_ble_gatt_set_local_mtu FAILED\n");
+        dprintf("[Bluetooth] esp_ble_gatt_set_local_mtu FAILED\n");
         return err;
     }
 
-    dprintf("esp_bt_init - OK\n");
+    dprintf("[Bluetooth] OK\n");
     return ESP_OK;
 }

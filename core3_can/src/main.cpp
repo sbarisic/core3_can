@@ -9,6 +9,8 @@
 #include <core3_bt.h>
 #include <core3_wifi.h>
 
+#include <esp_adc/adc_oneshot.h>
+
 #define LED_PIN WS2812_PIN // digital pin used to drive the LED strip
 #define LED_COUNT 1        // number of LEDs on the strip
 #define RGB(R, G, B) ((R << 16) | (G << 8) | B)
@@ -22,12 +24,12 @@ typedef struct
 
 // ====================================== Variables ======================================
 
-int64_t emu_tstp[8];
-emu_data_t emu_data;
-vehicle_data veh_data;
+static int64_t emu_tstp[8];
+// static emu_data_t emu_data;
+// static vehicle_data veh_data;
 
-can_message tx_frames[16];
-int tx_frames_count = 0;
+static can_message tx_frames[16];
+static int tx_frames_count = 0;
 
 // Basic ==========================================================================================================
 
@@ -78,63 +80,6 @@ void timer_can_send(void *args)
 void setup_can_channels()
 {
     tx_frames_count = 0;
-
-    /*// Wakeup
-    tx_frames[tx_frames_count].frame.identifier = 0x100;
-    tx_frames[tx_frames_count].frame.data_length_code = 8;
-    tx_frames[tx_frames_count].frame.data[0] = 0;
-    tx_frames[tx_frames_count].frame.data[1] = 0;
-    tx_frames[tx_frames_count].frame.data[2] = 0;
-    tx_frames[tx_frames_count].frame.data[3] = 0;
-    tx_frames[tx_frames_count].frame.data[4] = 0;
-    tx_frames[tx_frames_count].frame.data[5] = 0;
-    tx_frames[tx_frames_count].frame.data[6] = 0;
-    tx_frames[tx_frames_count].frame.data[7] = 0;
-    tx_frames[tx_frames_count].send_interval = 1000;
-    tx_frames_count++;
-
-    // Wakeup
-    tx_frames[tx_frames_count].frame.identifier = 0x101;
-    tx_frames[tx_frames_count].frame.data_length_code = 4;
-    tx_frames[tx_frames_count].frame.data[0] = 0xFD;
-    tx_frames[tx_frames_count].frame.data[1] = 0x02;
-    tx_frames[tx_frames_count].frame.data[2] = 0x10;
-    tx_frames[tx_frames_count].frame.data[3] = 0x04;
-    tx_frames[tx_frames_count].frame.data[4] = 0;
-    tx_frames[tx_frames_count].frame.data[5] = 0;
-    tx_frames[tx_frames_count].frame.data[6] = 0;
-    tx_frames[tx_frames_count].frame.data[7] = 0;
-    tx_frames[tx_frames_count].send_interval = 1000;
-    tx_frames_count++;
-
-    // Wakeup
-    tx_frames[tx_frames_count].frame.identifier = 0x632;
-    tx_frames[tx_frames_count].frame.data_length_code = 4;
-    tx_frames[tx_frames_count].frame.data[0] = 0;
-    tx_frames[tx_frames_count].frame.data[1] = 0x48;
-    tx_frames[tx_frames_count].frame.data[2] = 0x50;
-    tx_frames[tx_frames_count].frame.data[3] = 0;
-    tx_frames[tx_frames_count].frame.data[4] = 0;
-    tx_frames[tx_frames_count].frame.data[5] = 0;
-    tx_frames[tx_frames_count].frame.data[6] = 0;
-    tx_frames[tx_frames_count].frame.data[7] = 0;
-    tx_frames[tx_frames_count].send_interval = 1000;
-    tx_frames_count++;
-
-    // Wakeup
-    tx_frames[tx_frames_count].frame.identifier = 0x170;
-    tx_frames[tx_frames_count].frame.data_length_code = 3;
-    tx_frames[tx_frames_count].frame.data[0] = 0x60;
-    tx_frames[tx_frames_count].frame.data[1] = 0x00;
-    tx_frames[tx_frames_count].frame.data[2] = 0x00;
-    tx_frames[tx_frames_count].frame.data[3] = 0;
-    tx_frames[tx_frames_count].frame.data[4] = 0;
-    tx_frames[tx_frames_count].frame.data[5] = 0;
-    tx_frames[tx_frames_count].frame.data[6] = 0;
-    tx_frames[tx_frames_count].frame.data[7] = 0;
-    tx_frames[tx_frames_count].send_interval = 100;
-    tx_frames_count++;
-    //*/
 }
 
 void can_channel_test()
@@ -190,48 +135,58 @@ void print_runtime()
     dprintf("Time since boot: %.2f s\n", s);
 }
 
-void app_main()
+int core3_analog()
 {
-    dprintf("Starting app!\n");
-    core3_init();
+    return 0;
+}
 
-    gpio_set_direction(PIN_5V_EN, GPIO_MODE_OUTPUT);
-    gpio_set_level(PIN_5V_EN, 1);
+void init_gpio_pins()
+{
+    dprintf("init_gpio_pins()\n");
 
-    gpio_set_direction(CAN_SE_PIN, GPIO_MODE_OUTPUT);
-    gpio_set_level(CAN_SE_PIN, 0);
+    // GPIO inputs
+    // gpio_set_direction(GPIO0, GPIO_MODE_INPUT);
+    // gpio_set_direction(GPIO2, GPIO_MODE_INPUT);
 
+    /*gpio_set_direction(GPIOA0, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(GPIOA0, GPIO_FLOATING);
+
+    adc_oneshot_unit_handle_t adc1_handle;
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+        .unit_id = ADC_UNIT_1,
+        .clk_src = (adc_oneshot_clk_src_t)0,
+        .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+    ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    adc_oneshot_chan_cfg_t config = {
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_DEFAULT};
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA0_CH, &config));
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    int an_val = 0;
+    if (adc_oneshot_read(adc1_handle, GPIOA0_CH, &an_val) == ESP_OK)
+    {
+        dprintf("A0 = %d\n", an_val);
+    }
+    else
+    {
+        dprintf("Read failed\n");
+    }*/
+}
+
+void core3_program(void *arg)
+{
     core3_flash_init();
+
+    dprintf("Cal string: %s\n", (const char *)core3_flash_cal_offset(0x0));
 
     core3_bt_init();
 
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
-
-    /*esp_timer_create_args_t timer_can_send_args = {.callback = timer_can_send,
-                                                   .arg = NULL,
-                                                   .dispatch_method = ESP_TIMER_TASK,
-                                                   .name = "timer_can_send",
-                                                   .skip_unhandled_events = false};
-
-    esp_timer_handle_t task_can_send_timer;
-    ESP_ERROR_CHECK(esp_timer_create(&timer_can_send_args, &task_can_send_timer));
-
-    esp_timer_start_periodic(task_can_send_timer, 1000 * 2);*/
-
-    // print_runtime();
-
-    /*if (core3_wifi_init() == ESP_OK)
-    {
-        dprintf("Delaying until WiFi connected ... ");
-
-        if (core3_wifi_delay_until_connected())
-            dprintf("OK\n");
-        else
-            dprintf("FAIL\n");
-    }
-
-    print_runtime();*/
 
     dprintf("Done!\n");
     while (true)
@@ -252,4 +207,23 @@ void app_main()
 
         vTaskDelay(pdMS_TO_TICKS(50));
     }
+}
+
+void app_main()
+{
+    dprintf("Starting app!\n");
+
+    gpio_set_direction(PIN_5V_EN, GPIO_MODE_OUTPUT);
+    gpio_set_level(PIN_5V_EN, 1);
+
+    gpio_set_direction(SDCARD_PIN_CS, GPIO_MODE_OUTPUT);
+    gpio_set_level(SDCARD_PIN_CS, 1);
+
+    vTaskDelay(pdMS_TO_TICKS(250));
+
+    init_gpio_pins();
+
+    core3_init();
+
+    xTaskCreate(core3_program, "core3_program", 1024 * 60, NULL, CORE3_PROGRAM_PRIORITY, NULL);
 }

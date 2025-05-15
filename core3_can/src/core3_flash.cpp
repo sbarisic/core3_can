@@ -15,12 +15,19 @@ const void *core3_flash_cal_offset(size_t offset)
     if (offset == 0)
         return cal_memory;
 
-    return (const void *)(((size_t)cal_memory) + offset);
+    return (const void *)((size_t)cal_memory + offset);
 }
 
-bool core3_flash_cal_erase()
+bool core3_flash_cal_erase(size_t offset, size_t size)
 {
-    esp_err_t err = esp_partition_erase_range(cal_part, 0x0, mem_size);
+    if (offset == 0x0 && size == 0x0)
+        size = CONFIG_WL_SECTOR_SIZE;
+    else
+        size = core3_round_up(size, CONFIG_WL_SECTOR_SIZE);
+
+    dprintf("core3_flash_cal_erase(%u, %u)\n", offset, size);
+
+    esp_err_t err = esp_partition_erase_range(cal_part, offset, size);
 
     if (err != ESP_OK)
     {
@@ -33,7 +40,9 @@ bool core3_flash_cal_erase()
 
 bool core3_flash_cal_write(size_t offset, const void *src, size_t size)
 {
-    esp_err_t err = esp_partition_write(cal_part, 0x0, src, size);
+    dprintf("core3_flash_cal_write(%u, %u)\n", offset, size);
+
+    esp_err_t err = esp_partition_write(cal_part, offset, src, size);
 
     if (err != ESP_OK)
     {
@@ -69,6 +78,31 @@ bool core3_flash_init()
     if (!core3_flash_map())
         return false;
 
-    dprintf("core3_flash_init() done\n");
-    return true;
+    bool is_success = true;
+
+    const uint8_t *write_check = (const uint8_t *)core3_flash_cal_offset(0x0);
+    if (*write_check == 0xFF)
+    {
+        size_t write_data_len = 64;
+        uint8_t *write_data = (uint8_t *)malloc(write_data_len);
+
+        write_data[0] = 0x0;
+        sprintf((char *)&(write_data[1]), "Hello World!");
+
+        if (core3_flash_cal_erase(0x0, write_data_len))
+        {
+            if (!core3_flash_cal_write(0x0, write_data, write_data_len))
+                is_success = false;
+        }
+        else
+            is_success = false;
+
+        free(write_data);
+    }
+    else
+    {
+        dprintf("core3_flash_init() ... magic OK\n");
+    }
+
+    return is_success;
 }
