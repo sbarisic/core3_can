@@ -21,7 +21,7 @@ namespace Core3_BLE_Console.UI {
 		Vector2 NextButtonPosition = new Vector2(20, 20);
 		int ButtonSpacing = 42;
 
-		float MaxValue = 4500;
+		public float MaxValue = 4500;
 
 		float SampleInterval = 5 / 64.0f;
 		float LastSampleTime = 0;

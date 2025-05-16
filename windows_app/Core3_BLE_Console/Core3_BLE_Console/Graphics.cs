@@ -61,12 +61,14 @@ namespace Core3_BLE_Console {
 			TestGraph2.Variable = DQ.GetVariable(0x3);
 			TestGraph2.GraphColor = new Color(181, 134, 139);
 			TestGraph2.ElementPosition += new Vector2(0, 150 * 2);
+			TestGraph2.MaxValue = 300;
 			AddUIElement(TestGraph2);
 
 			UIGraph TestGraph3 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
 			TestGraph3.Variable = DQ.GetVariable(0x4);
 			TestGraph3.GraphColor = new Color(176, 181, 134);
 			TestGraph3.ElementPosition += new Vector2(0, 150 * 3);
+			TestGraph3.MaxValue = 300;
 			AddUIElement(TestGraph3);
 
 			UIToolbar Toolbar = new UIToolbar(DrawFont, FontSpacing, FontSize, UInput);

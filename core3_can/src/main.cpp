@@ -25,12 +25,13 @@ typedef struct
 typedef struct
 {
     uint32_t ID;
-    uint32_t Val;
+    uint32_t *ValPtr;
     float Time;
 } watcher_var;
 
 static size_t var_count = 0;
 static watcher_var variables[16];
+static core3_io_digital core3_io_digitals[16];
 
 // ====================================== Variables ======================================
 
@@ -191,7 +192,7 @@ bool core3_var_set(uint32_t var, uint32_t val, float time)
     {
         if (variables[i].ID == var)
         {
-            variables[i].Val = val;
+            *variables[i].ValPtr = val;
             variables[i].Time = time;
             return true;
         }
@@ -199,7 +200,7 @@ bool core3_var_set(uint32_t var, uint32_t val, float time)
 
     size_t newidx = var_count++;
     variables[newidx].ID = var;
-    variables[newidx].Val = val;
+    variables[newidx].ValPtr = &core3_io_digitals[newidx].raw_value;
     variables[newidx].Time = time;
     return true;
 }
@@ -210,7 +211,7 @@ uint32_t core3_var_get(uint32_t var)
     {
         if (variables[i].ID == var)
         {
-            return variables[i].Val;
+            return *variables[i].ValPtr;
         }
     }
 
@@ -218,6 +219,7 @@ uint32_t core3_var_get(uint32_t var)
 }
 
 static volatile btDataStruc *btResponse;
+static uint8_t can_heartbeat = 0;
 
 static uint64_t ms = 0;
 static uint64_t var_stream_last = 0;
@@ -228,6 +230,9 @@ static uint64_t can_stream_interval = 60;
 
 static uint64_t io_poll_last = 0;
 static uint64_t io_poll_interval = 80;
+
+static uint64_t logic_last = 0;
+static uint64_t logic_interval = 80;
 
 static bool var_watch_enabled = false;
 
@@ -241,6 +246,23 @@ void core3_var_watch_set(bool enabled)
     var_watch_enabled = enabled;
 }
 
+void core3_io_digital_calc(core3_io_digital *dig)
+{
+    if (dig->trigger_value == 0)
+        return;
+
+    if (dig->value == 0x0)
+    {
+        if (dig->raw_value > dig->trigger_value + dig->hyst)
+            dig->value = 0xFF;
+    }
+    else
+    {
+        if (dig->raw_value < dig->trigger_value - dig->hyst)
+            dig->value = 0x0;
+    }
+}
+
 void core3_tick(TimerHandle_t timer)
 {
     ms = esp_timer_get_time() / 1000;
@@ -249,6 +271,57 @@ void core3_tick(TimerHandle_t timer)
     //  dprintf("TPS: %d)
 
     // can_channel_turn_on_IPC();
+
+    if (ms >= logic_last + logic_interval)
+    {
+        logic_last = ms;
+
+        for (size_t i = 0; i < sizeof(core3_io_digitals) / sizeof(*core3_io_digitals); i++)
+        {
+            core3_io_digitals[i].trigger_value = 1000;
+            core3_io_digitals[i].hyst = 100;
+            core3_io_digital_calc(&core3_io_digitals[i]);
+        }
+
+        uint32_t base_can_id = 0x640;
+        int dig_id = 8;
+
+        if (core3_io_digitals[dig_id].can_sent == 0xFF && core3_io_digitals[dig_id].can_sent == 0xFF && core3_io_digitals[dig_id].can_sent == 0xFF)
+        {
+            core3_io_digitals[dig_id].can_sent = 0;
+            core3_io_digitals[dig_id].hyst = 0;
+            core3_io_digitals[dig_id].trigger_value = 0;
+            core3_io_digitals[dig_id].can_id = base_can_id;
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[0] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG0);
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[1] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG1);
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[2] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG2);
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[3] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG3);
+            dig_id++;
+
+            core3_io_digitals[dig_id].can_sent = 0;
+            core3_io_digitals[dig_id].hyst = 0;
+            core3_io_digitals[dig_id].trigger_value = 0;
+            core3_io_digitals[dig_id].can_id = base_can_id + 1;
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[0] = core3_io_digitals[0].value;
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[1] = core3_io_digitals[1].value;
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[2] = core3_io_digitals[2].value;
+            ((uint16_t *)core3_io_digitals[dig_id].can_data)[3] = core3_io_digitals[3].value;
+
+            core3_io_digitals[dig_id].can_sent = 0;
+            core3_io_digitals[dig_id].hyst = 0;
+            core3_io_digitals[dig_id].trigger_value = 0;
+            core3_io_digitals[dig_id].can_id = base_can_id + 2;
+            (core3_io_digitals[dig_id].can_data)[0] = 0x0;
+            (core3_io_digitals[dig_id].can_data)[1] = 0x0;
+            (core3_io_digitals[dig_id].can_data)[2] = 0x0;
+            (core3_io_digitals[dig_id].can_data)[3] = 0x0;
+            (core3_io_digitals[dig_id].can_data)[4] = 0x0;
+            (core3_io_digitals[dig_id].can_data)[5] = 0x0;
+            (core3_io_digitals[dig_id].can_data)[6] = 0x0;
+            (core3_io_digitals[dig_id].can_data)[7] = can_heartbeat++;
+            dig_id++;
+        }
+    }
 
     if (ms >= io_poll_last + io_poll_interval)
     {
@@ -270,7 +343,7 @@ void core3_tick(TimerHandle_t timer)
                 btResponse->ID = btDataID_VAR_WATCH_RESP;
                 btResponse->Counter = btDataID_VAR_WATCH_RESP;
                 btResponse->Data1 = variables[i].ID;
-                btResponse->Data2 = variables[i].Val;
+                btResponse->Data2 = *variables[i].ValPtr;
                 *((float *)&btResponse->Data[0]) = variables[i].Time;
                 core3_bt_send_data_len((uint8_t *)btResponse, sizeof(btDataStruc));
             }
@@ -286,6 +359,8 @@ void core3_tick(TimerHandle_t timer)
         {
             dprintf("Received CAN message!\n");
         }
+
+        // TODO: Iterate over io_digitals and send all available can frames
     }
 }
 

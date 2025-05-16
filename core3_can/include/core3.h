@@ -71,13 +71,28 @@ extern "C"
 {
 #endif
 
+    typedef struct PACKED_ATTR
+    {
+        uint8_t value;
+        uint32_t raw_value;
+
+        uint32_t trigger_value;
+        uint32_t hyst;
+
+        uint8_t can_sent;
+        uint32_t can_id;
+        uint8_t can_data[8];
+        uint64_t last_sent;
+        uint64_t send_interval;
+    } core3_io_digital;
+
     void app_main();
     void core3_init();
     size_t core3_round_up(size_t numToRound, size_t multiple);
 
     bool core3_var_watch_is_enabled();
     void core3_var_watch_set(bool enabled);
-    
+
 #if defined(__cplusplus)
 }
 #endif
