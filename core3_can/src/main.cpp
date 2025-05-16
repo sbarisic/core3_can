@@ -1,6 +1,6 @@
 #include <core3.h>
-#include <core3_flash.h>
 #include <core3_can.h>
+#include <core3_flash.h>
 #include <core3_gmlan.h>
 #include <core3_gpio.h>
 #include <ecumaster.h>
@@ -174,9 +174,7 @@ void init_gpio_pins()
     ESP_ERROR_CHECK(adc_oneshot_new_unit(&init_config1, &adc1_handle));
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    adc_oneshot_chan_cfg_t config = {
-        .atten = ADC_ATTEN_DB_12,
-        .bitwidth = ADC_BITWIDTH_DEFAULT};
+    adc_oneshot_chan_cfg_t config = {.atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT};
 
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA0_CH, &config));
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA1_CH, &config));
@@ -286,7 +284,8 @@ void core3_tick(TimerHandle_t timer)
         uint32_t base_can_id = 0x640;
         int dig_id = 8;
 
-        if (core3_io_digitals[dig_id].can_sent == 0xFF && core3_io_digitals[dig_id].can_sent == 0xFF && core3_io_digitals[dig_id].can_sent == 0xFF)
+        if (core3_io_digitals[dig_id].can_sent == 0xFF && core3_io_digitals[dig_id].can_sent == 0xFF &&
+            core3_io_digitals[dig_id].can_sent == 0xFF)
         {
             core3_io_digitals[dig_id].can_sent = 0;
             core3_io_digitals[dig_id].hyst = 0;
