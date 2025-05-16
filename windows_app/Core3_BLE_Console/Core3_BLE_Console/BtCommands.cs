@@ -138,5 +138,16 @@ namespace Core3_BLE_Console {
 
 			return true;
 		}
+
+		public BtData[] Cmd_VarWatch(uint Var) {
+			List<BtData> Cmds = new List<BtData>();
+			Cmds.Add(CreateCommand(IDType.VAR_WATCH, Var, 1));
+			return Cmds.ToArray();
+		}
+
+		public bool Cmd_VarWatchResp(uint Var, uint Val) {
+			Console.WriteLine("{0} = {1}", Var, Val);
+			return true;
+		}
 	}
 }

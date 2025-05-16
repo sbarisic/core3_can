@@ -18,6 +18,9 @@ namespace Core3_BLE_Console {
 
 		RAM_READ,
 		RAM_READ_RESP,
+
+		VAR_WATCH,
+		VAR_WATCH_RESP
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -34,6 +37,18 @@ namespace Core3_BLE_Console {
 
 	delegate void BtSendFunc(byte[] SendBytes);
 
+	class BtWatcherVariable {
+		public uint ID;
+		public uint Value;
+		public float Time;
+
+		public BtWatcherVariable(uint ID, uint Value, float Time) {
+			this.ID = ID;
+			this.Value = Value;
+			this.Time = Time;
+		}
+	}
+
 	unsafe class BtDataQueue {
 		byte Counter = 0;
 		BtData?[] BtCommandArray = new BtData?[16];
@@ -42,6 +57,8 @@ namespace Core3_BLE_Console {
 		object Lck = new object();
 
 		public BtCommands Commands = new BtCommands();
+
+		public Dictionary<uint, BtWatcherVariable> Variables = new Dictionary<uint, BtWatcherVariable>();
 
 		public BtDataQueue() {
 
@@ -68,7 +85,8 @@ namespace Core3_BLE_Console {
 
 				if (TryFindReturnList(Dat, out BtData Orig)) {
 					ProcessData(Orig, Dat);
-				}
+				} else
+					ProcessDataReturn(Dat);
 			}
 		}
 
@@ -85,6 +103,33 @@ namespace Core3_BLE_Console {
 			}
 
 			return false;
+		}
+
+		bool ProcessDataReturn(BtData Return) {
+			if (Return.ID == IDType.VAR_WATCH_RESP) {
+				uint Var = Return.Data1;
+				uint Val = Return.Data2;
+				float Sec = *(float*)Return.Data;
+
+				if (Variables.ContainsKey(Var)) {
+					Variables[Var].Value = Val;
+					Variables[Var].Time = Sec;
+				} else {
+					Variables[Var] = new BtWatcherVariable(Var, Val, Sec);
+				}
+
+				Console.WriteLine("[{0}] {1} = {2}", MathF.Round(Sec, 4), Var, Val);
+			}
+
+			return false;
+		}
+
+		public BtWatcherVariable GetVariable(uint Var) {
+			if (Variables.ContainsKey(Var))
+				return Variables[Var];
+
+			Variables.Add(Var, new BtWatcherVariable(Var, 0, 0));
+			return Variables[Var];
 		}
 
 		public bool TryParseCommand(byte[] Bytes, out BtData Dat) {

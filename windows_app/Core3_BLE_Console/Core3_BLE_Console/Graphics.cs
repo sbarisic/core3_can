@@ -40,13 +40,18 @@ namespace Core3_BLE_Console {
 			//DrawFont = Raylib.LoadFontEx("data/fonts/Enwallowify_Medium.ttf", FontSize, null, 250);
 
 			UInput = new UserInput(DrawFont, FontSpacing, FontSize);
+			
 			UITable TestTable = new UITable(DrawFont, FontSpacing, FontSize, UInput);
-			AddUIElement(TestTable);
-			UIToolbar Toolbar = new UIToolbar(DrawFont, FontSpacing, FontSize, UInput);
+			//AddUIElement(TestTable);
 
+			UIGraph TestGraph = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
+			AddUIElement(TestGraph);
+
+			UIToolbar Toolbar = new UIToolbar(DrawFont, FontSpacing, FontSize, UInput);
 			Toolbar.AddButton("Download Cal", () => { DownloadCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Erase Cal", () => { EraseCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Upload Cal", () => { UploadCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
+			Toolbar.AddButton("Realtime", () => { RealtimeData(); }, (Btn) => !Bluetooth.IsConnected());
 
 			AddUIElement(Toolbar);
 
@@ -65,6 +70,16 @@ namespace Core3_BLE_Console {
 			MS.Write(new byte[256 - MS.Position]);
 
 			OnMemReceived(TestTable, MS.ToArray());
+		}
+
+		static void RealtimeData() {
+			BtDataQueue DQ = Bluetooth.GetDataQueue();
+			BtData[] CmdArr = DQ.Commands.Cmd_VarWatch(0x0).ToArray();
+
+			foreach (BtData Cmd in CmdArr) {
+				while (!DQ.TryEnqueueSend(Cmd))
+					Thread.Sleep(10);
+			}
 		}
 
 		static void DownloadCalibration(UITable Tbl) {

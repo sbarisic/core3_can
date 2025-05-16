@@ -69,13 +69,14 @@ static const uint8_t spp_adv_data[23] = {
     0x03, 0x03, 0xF0, 0xAB,
     /* Complete Local Name in advertising */
     0x0F, 0x09, 'E', 'S', 'P', '_', 'S', 'P', 'P', '_', 'S', 'E', 'R', 'V', 'E', 'R'};
+    
 
-static uint16_t spp_mtu_size = SPP_GATT_MTU_SIZE;
-static uint16_t spp_conn_id = 0xffff;
-static esp_gatt_if_t spp_gatts_if = 0xff;
+static volatile uint16_t spp_mtu_size = SPP_GATT_MTU_SIZE;
+static volatile uint16_t spp_conn_id = 0xffff;
+static volatile esp_gatt_if_t spp_gatts_if = 0xff;
 
-static bool enable_data_ntf = false;
-static bool is_connected = false;
+static volatile bool enable_data_ntf = false;
+static volatile bool is_connected = false;
 static esp_bd_addr_t spp_remote_bda = {
     0x0,
 };
@@ -310,7 +311,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         if (param->write.len >= sizeof(btDataStruc))
         {
             memcpy(&btData, param->write.value, sizeof(btDataStruc));
-            //dprintf("Got btData ID %d\n", btData.ID);
+            // dprintf("Got btData ID %d\n", btData.ID);
 
             if (btData.ID == btDataID_CAL_READ && btData.Data2 < 0xFF)
             {
@@ -380,16 +381,16 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 
         spp_conn_id = p_data->connect.conn_id;
         spp_gatts_if = gatts_if;
-        is_connected = true;
         memcpy(&spp_remote_bda, &p_data->connect.remote_bda, sizeof(esp_bd_addr_t));
+        is_connected = true;
         break;
 
     case ESP_GATTS_DISCONNECT_EVT:
         dprintf("[Bluetooth] Disconnected, remote " ESP_BD_ADDR_STR ", reason 0x%02x\n",
                 ESP_BD_ADDR_HEX(param->disconnect.remote_bda), param->disconnect.reason);
 
-        spp_mtu_size = 23;
         is_connected = false;
+        spp_mtu_size = 23;
         enable_data_ntf = false;
 
         esp_ble_gap_start_advertising(&spp_adv_params);

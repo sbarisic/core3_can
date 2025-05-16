@@ -22,6 +22,16 @@ typedef struct
     int16_t send_interval;
 } can_message;
 
+typedef struct
+{
+    uint32_t ID;
+    uint32_t Val;
+    float Time;
+} watcher_var;
+
+static size_t var_count = 0;
+static watcher_var variables[16];
+
 // ====================================== Variables ======================================
 
 static int64_t emu_tstp[8];
@@ -135,9 +145,13 @@ void print_runtime()
     dprintf("Time since boot: %.2f s\n", s);
 }
 
-int core3_analog()
+adc_oneshot_unit_handle_t adc1_handle;
+
+int core3_analog(adc_channel_t analog)
 {
-    return 0;
+    int an_val = 0;
+    adc_oneshot_read(adc1_handle, analog, &an_val);
+    return an_val;
 }
 
 void init_gpio_pins()
@@ -148,10 +162,9 @@ void init_gpio_pins()
     // gpio_set_direction(GPIO0, GPIO_MODE_INPUT);
     // gpio_set_direction(GPIO2, GPIO_MODE_INPUT);
 
-    /*gpio_set_direction(GPIOA0, GPIO_MODE_INPUT);
+    gpio_set_direction(GPIOA0, GPIO_MODE_INPUT);
     gpio_set_pull_mode(GPIOA0, GPIO_FLOATING);
 
-    adc_oneshot_unit_handle_t adc1_handle;
     adc_oneshot_unit_init_cfg_t init_config1 = {
         .unit_id = ADC_UNIT_1,
         .clk_src = (adc_oneshot_clk_src_t)0,
@@ -165,16 +178,92 @@ void init_gpio_pins()
         .bitwidth = ADC_BITWIDTH_DEFAULT};
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA0_CH, &config));
     vTaskDelay(pdMS_TO_TICKS(10));
+}
 
-    int an_val = 0;
-    if (adc_oneshot_read(adc1_handle, GPIOA0_CH, &an_val) == ESP_OK)
+bool core3_var_set(uint32_t var, uint32_t val, float time)
+{
+    for (size_t i = 0; i < var_count; i++)
     {
-        dprintf("A0 = %d\n", an_val);
+        if (variables[i].ID == var)
+        {
+            variables[i].Val = val;
+            variables[i].Time = time;
+            return true;
+        }
     }
-    else
+
+    size_t newidx = var_count++;
+    variables[newidx].ID = var;
+    variables[newidx].Val = val;
+    variables[newidx].Time = time;
+    return true;
+}
+
+uint32_t core3_var_get(uint32_t var)
+{
+    for (size_t i = 0; i < var_count; i++)
     {
-        dprintf("Read failed\n");
-    }*/
+        if (variables[i].ID == var)
+        {
+            return variables[i].Val;
+        }
+    }
+
+    return 0;
+}
+
+static volatile btDataStruc *btResponse;
+
+static uint64_t ms = 0;
+static uint64_t var_stream_last = 0;
+static uint64_t var_stream_interval = 40;
+
+static uint64_t can_stream_last = 0;
+static uint64_t can_stream_interval = 60;
+
+static uint64_t io_poll_last = 0;
+static uint64_t io_poll_interval = 80;
+
+void core3_tick(TimerHandle_t timer)
+{
+    ms = esp_timer_get_time() / 1000;
+
+    // dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
+    //  dprintf("TPS: %d)
+
+    // can_channel_turn_on_IPC();
+
+    if (ms >= io_poll_last + io_poll_interval)
+    {
+        io_poll_last = ms;
+        core3_var_set(CORE3_VAR_ANALOG0, core3_analog(GPIOA0_CH), ms / 1000.0f);
+    }
+
+    if (ms >= var_stream_last + var_stream_interval)
+    {
+        var_stream_last = ms;
+
+        for (size_t i = 0; i < var_count; i++)
+        {
+            btResponse->ID = btDataID_VAR_WATCH_RESP;
+            btResponse->Counter = btDataID_VAR_WATCH_RESP;
+            btResponse->Data1 = variables[i].ID;
+            btResponse->Data2 = variables[i].Val;
+            *((float *)&btResponse->Data[0]) = variables[i].Time;
+            core3_bt_send_data_len((uint8_t *)btResponse, sizeof(btDataStruc));
+        }
+    }
+
+    if (ms >= can_stream_last + can_stream_interval)
+    {
+        can_stream_last = ms;
+
+        core3_can_msg msg;
+        if (core3_can_rx_dequeue(&msg))
+        {
+            dprintf("Received CAN message!\n");
+        }
+    }
 }
 
 void core3_program(void *arg)
@@ -184,28 +273,20 @@ void core3_program(void *arg)
     dprintf("Cal string: %s\n", (const char *)core3_flash_cal_offset(0x0));
 
     core3_bt_init();
-
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
 
     dprintf("Done!\n");
+
+    btResponse = (btDataStruc *)malloc(sizeof(btDataStruc));
+    memset((void *)btResponse, 0, sizeof(btDataStruc));
+
+    TimerHandle_t core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(20), pdTRUE, NULL, core3_tick);
+    xTimerStart(core3_tick_timer, pdMS_TO_TICKS(10));
+
     while (true)
     {
-        // dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
-        //  dprintf("TPS: %d)
-
-        // can_channel_turn_on_IPC();
-
-        if (core3_bt_is_connected())
-        {
-            core3_can_msg msg;
-            if (core3_can_rx_dequeue(&msg))
-            {
-                dprintf("Received CAN message!\n");
-            }
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
@@ -219,10 +300,9 @@ void app_main()
     gpio_set_direction(SDCARD_PIN_CS, GPIO_MODE_OUTPUT);
     gpio_set_level(SDCARD_PIN_CS, 1);
 
-    vTaskDelay(pdMS_TO_TICKS(250));
+    vTaskDelay(pdMS_TO_TICKS(50));
 
     init_gpio_pins();
-
     core3_init();
 
     xTaskCreate(core3_program, "core3_program", 1024 * 60, NULL, CORE3_PROGRAM_PRIORITY, NULL);

@@ -61,6 +61,8 @@
 #define CORE3_CAN_SEND_PRIORITY 4
 #define CORE3_CAN_RECEIVE_PRIORITY 5
 
+#define CORE3_VAR_ANALOG0 0x1
+
 #if defined(__cplusplus)
 extern "C"
 {
