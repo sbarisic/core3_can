@@ -44,28 +44,28 @@ namespace Core3_BLE_Console {
 			UInput = new UserInput(DrawFont, FontSpacing, FontSize);
 
 			UITable TestTable = new UITable(DrawFont, FontSpacing, FontSize, UInput);
-			//AddUIElement(TestTable);
+			AddUIElement(TestTable);
 
 			UIGraph TestGraph0 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
-			TestGraph0.Variable = DQ.GetVariable(0x1);
+			TestGraph0.Variable = DQ.GetVariable("An0", 0x1);
 			TestGraph0.GraphColor = new Color(134, 181, 147);
 			AddUIElement(TestGraph0);
 
 			UIGraph TestGraph1 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
-			TestGraph1.Variable = DQ.GetVariable(0x2);
+			TestGraph1.Variable = DQ.GetVariable("An1", 0x2);
 			TestGraph1.GraphColor = new Color(134, 173, 181);
 			TestGraph1.ElementPosition += new Vector2(0, 150 * 1);
 			AddUIElement(TestGraph1);
 
 			UIGraph TestGraph2 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
-			TestGraph2.Variable = DQ.GetVariable(0x3);
+			TestGraph2.Variable = DQ.GetVariable("An2", 0x3);
 			TestGraph2.GraphColor = new Color(181, 134, 139);
 			TestGraph2.ElementPosition += new Vector2(0, 150 * 2);
 			TestGraph2.MaxValue = 300;
 			AddUIElement(TestGraph2);
 
 			UIGraph TestGraph3 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
-			TestGraph3.Variable = DQ.GetVariable(0x4);
+			TestGraph3.Variable = DQ.GetVariable("An3", 0x4);
 			TestGraph3.GraphColor = new Color(176, 181, 134);
 			TestGraph3.ElementPosition += new Vector2(0, 150 * 3);
 			TestGraph3.MaxValue = 300;
@@ -76,8 +76,11 @@ namespace Core3_BLE_Console {
 			Toolbar.AddButton("Erase Cal", () => { EraseCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Upload Cal", () => { UploadCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Realtime", () => { RealtimeData(); }, (Btn) => !Bluetooth.IsConnected());
-
+			Toolbar.AddButton("Reboot", () => { RebootECU(); }, (Btn) => !Bluetooth.IsConnected());
 			AddUIElement(Toolbar);
+
+			UIVarView VarView = new UIVarView(DrawFont, FontSpacing, FontSize, UInput);
+			AddUIElement(VarView);
 
 
 			/*BtDataQueue DQ = Bluetooth.GetDataQueue();
@@ -94,6 +97,16 @@ namespace Core3_BLE_Console {
 			MS.Write(new byte[256 - MS.Position]);
 
 			OnMemReceived(TestTable, MS.ToArray());
+		}
+
+		static void RebootECU() {
+			BtDataQueue DQ = Bluetooth.GetDataQueue();
+			BtData[] CmdArr = DQ.Commands.Cmd_Reboot().ToArray();
+
+			foreach (BtData Cmd in CmdArr) {
+				while (!DQ.TryEnqueueSend(Cmd))
+					Thread.Sleep(10);
+			}
 		}
 
 		static void RealtimeData() {

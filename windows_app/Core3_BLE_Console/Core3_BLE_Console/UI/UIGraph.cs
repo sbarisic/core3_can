@@ -21,16 +21,16 @@ namespace Core3_BLE_Console.UI {
 		Vector2 NextButtonPosition = new Vector2(20, 20);
 		int ButtonSpacing = 42;
 
-		public float MaxValue = 4500;
+		public float MaxValue = 5;
 
-		float SampleInterval = 5 / 64.0f;
+		float[] SamplesNormal = new float[128];
+		float[] SamplesRaw = new float[128];
+		float SampleInterval = 5 / 128.0f;
 		float LastSampleTime = 0;
 
 		public BtWatcherVariable Variable;
 		public Color GraphColor = Color.White;
 
-		float[] SamplesNormal = new float[64];
-		uint[] SamplesRaw = new uint[64];
 
 		Raylib_cs.Image GraphImage;
 		Texture2D GraphTex;
@@ -63,12 +63,12 @@ namespace Core3_BLE_Console.UI {
 			return false;
 		}
 
-		uint RawMin = 0;
-		uint RawMax = 0;
+		float RawMin = 0;
+		float RawMax = 0;
 		float HeightMax = 0;
 		float HeightMin = 0;
 
-		void AppendSample(float Sample, uint Raw) {
+		void AppendSample(float Sample, float Raw) {
 			Raylib.ImageClearBackground(ref GraphImage, new Color(0, 0, 0, 0));
 
 			fixed (Raylib_cs.Image* GraphImagePtr = &GraphImage) {
@@ -133,8 +133,8 @@ namespace Core3_BLE_Console.UI {
 			if (LastSampleTime <= Variable.Time - SampleInterval) {
 				LastSampleTime = Variable.Time;
 
-				float ValueNorm = ((float)Variable.Value) / MaxValue;
-				AppendSample(ValueNorm, Variable.Value);
+				float ValueNorm = ((float)Variable.ValueFloat) / MaxValue;
+				AppendSample(ValueNorm, Variable.ValueFloat);
 			}
 
 			Raylib.DrawRectanglePro(new Rectangle(ElementPosition, ElementSize), new Vector2(0, 0), 0, UseBgColor);
@@ -154,7 +154,7 @@ namespace Core3_BLE_Console.UI {
 			Raylib.DrawTextPro(DrawFont, RawMin.ToString(), new Vector2(ElementPosition.X - 5, RawMinPos.Y), new Vector2(RawMinSize.X, 0), 0, FontSize, FontSpacing, Color.SkyBlue);
 			Raylib.DrawTextPro(DrawFont, RawMax.ToString(), new Vector2(ElementPosition.X - 5, RawMaxPos.Y), new Vector2(RawMaxSize.X, 0), 0, FontSize, FontSpacing, Color.Orange);
 
-			Raylib.DrawTextPro(DrawFont, "Variable " + Variable.ID.ToString(), ElementPosition + new Vector2(5, 5), Vector2.Zero, 0, FontSize, FontSpacing, Color.White);
+			Raylib.DrawTextPro(DrawFont, Variable.Name, ElementPosition + new Vector2(5, 5), Vector2.Zero, 0, FontSize, FontSpacing, Color.White);
 
 			/*for (int i = 1; i < SamplesNormal.Length; i++) {
 				float Y0 = ElementSize.Y - (ElementSize.Y * SamplesNormal[i - 1]);

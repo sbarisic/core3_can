@@ -149,5 +149,16 @@ namespace Core3_BLE_Console {
 			//Console.WriteLine("{0} = {1}", Var, Val);
 			return true;
 		}
+
+		public BtData[] Cmd_Reboot() {
+			List<BtData> Cmds = new List<BtData>();
+			Cmds.Add(CreateCommand(IDType.VAR_RBOOT, 0, 0));
+			return Cmds.ToArray();
+		}
+
+		public bool Cmd_RebootResp(uint Var, uint Val) {
+			//Console.WriteLine("{0} = {1}", Var, Val);
+			return true;
+		}
 	}
 }

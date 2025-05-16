@@ -66,6 +66,11 @@
 #define CORE3_VAR_ANALOG2 0x3
 #define CORE3_VAR_ANALOG3 0x4
 
+#define CORE3_VAR_DIG0 0x8
+#define CORE3_VAR_DIG1 0x9
+#define CORE3_VAR_DIG2 0x10
+#define CORE3_VAR_DIG3 0x11
+
 #if defined(__cplusplus)
 extern "C"
 {

@@ -27,6 +27,7 @@ typedef struct
     uint32_t ID;
     uint32_t *ValPtr;
     float Time;
+    char Name[8];
 } watcher_var;
 
 static size_t var_count = 0;
@@ -147,11 +148,19 @@ void print_runtime()
 }
 
 adc_oneshot_unit_handle_t adc1_handle;
+adc_cali_handle_t adc1_cali_handle;
 
-int core3_analog(adc_channel_t analog)
+int core3_analog(adc_channel_t analog, float *volt)
 {
     int an_val = 0;
     adc_oneshot_read(adc1_handle, analog, &an_val);
+
+    int mv = 0;
+    if (adc_cali_raw_to_voltage(adc1_cali_handle, an_val, &mv) == ESP_OK)
+    {
+        *volt = mv / 1000.0f;
+    }
+
     return an_val;
 }
 
@@ -165,6 +174,15 @@ void init_gpio_pins()
 
     gpio_set_direction(GPIOA0, GPIO_MODE_INPUT);
     gpio_set_pull_mode(GPIOA0, GPIO_FLOATING);
+
+    gpio_set_direction(GPIOA1, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(GPIOA1, GPIO_FLOATING);
+
+    gpio_set_direction(GPIOA2, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(GPIOA2, GPIO_FLOATING);
+
+    gpio_set_direction(GPIOA3, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(GPIOA3, GPIO_FLOATING);
 
     adc_oneshot_unit_init_cfg_t init_config1 = {
         .unit_id = ADC_UNIT_1,
@@ -182,9 +200,17 @@ void init_gpio_pins()
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA3_CH, &config));
 
     vTaskDelay(pdMS_TO_TICKS(10));
+
+    dprintf("Calibration scheme version is %s", "Line Fitting");
+    adc_cali_line_fitting_config_t cali_config = {
+        .unit_id = ADC_UNIT_1,
+        .atten = ADC_ATTEN_DB_12,
+        .bitwidth = ADC_BITWIDTH_DEFAULT,
+        .default_vref = 0};
+    ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config, &adc1_cali_handle));
 }
 
-bool core3_var_set(uint32_t var, uint32_t val, float time)
+bool core3_var_set(const char *name, uint32_t var, uint32_t val, float time)
 {
     for (size_t i = 0; i < var_count; i++)
     {
@@ -192,6 +218,7 @@ bool core3_var_set(uint32_t var, uint32_t val, float time)
         {
             *variables[i].ValPtr = val;
             variables[i].Time = time;
+            memcpy(variables[i].Name, name, 8);
             return true;
         }
     }
@@ -200,6 +227,7 @@ bool core3_var_set(uint32_t var, uint32_t val, float time)
     variables[newidx].ID = var;
     variables[newidx].ValPtr = &core3_io_digitals[newidx].raw_value;
     variables[newidx].Time = time;
+    memcpy(variables[newidx].Name, name, 8);
     return true;
 }
 
@@ -325,10 +353,24 @@ void core3_tick(TimerHandle_t timer)
     if (ms >= io_poll_last + io_poll_interval)
     {
         io_poll_last = ms;
-        core3_var_set(CORE3_VAR_ANALOG0, core3_analog(GPIOA0_CH), ms / 1000.0f);
-        core3_var_set(CORE3_VAR_ANALOG1, core3_analog(GPIOA1_CH), ms / 1000.0f);
-        core3_var_set(CORE3_VAR_ANALOG2, core3_analog(GPIOA2_CH), ms / 1000.0f);
-        core3_var_set(CORE3_VAR_ANALOG3, core3_analog(GPIOA3_CH), ms / 1000.0f);
+
+        float time = ms / 1000.0f;
+        float v0, v1, v2, v3;
+
+        core3_analog(GPIOA0_CH, &v0);
+        core3_analog(GPIOA1_CH, &v1);
+        core3_analog(GPIOA2_CH, &v2);
+        core3_analog(GPIOA3_CH, &v3);
+
+        core3_var_set("Analog0 ", CORE3_VAR_ANALOG0, *(uint32_t *)&v0, time);
+        core3_var_set("Analog1 ", CORE3_VAR_ANALOG1, *(uint32_t *)&v1, time);
+        core3_var_set("Analog2 ", CORE3_VAR_ANALOG2, *(uint32_t *)&v2, time);
+        core3_var_set("Analog3 ", CORE3_VAR_ANALOG3, *(uint32_t *)&v3, time);
+
+        core3_var_set("Digital0", CORE3_VAR_DIG0, core3_io_digitals[8].value, time);
+        core3_var_set("Digital1", CORE3_VAR_DIG1, core3_io_digitals[8 + 1].value, time);
+        core3_var_set("Digital2", CORE3_VAR_DIG2, core3_io_digitals[8 + 2].value, time);
+        core3_var_set("Digital3", CORE3_VAR_DIG3, core3_io_digitals[8 + 3].value, time);
     }
 
     if (ms >= var_stream_last + var_stream_interval)
@@ -343,7 +385,12 @@ void core3_tick(TimerHandle_t timer)
                 btResponse->Counter = btDataID_VAR_WATCH_RESP;
                 btResponse->Data1 = variables[i].ID;
                 btResponse->Data2 = *variables[i].ValPtr;
-                *((float *)&btResponse->Data[0]) = variables[i].Time;
+
+                memset((void *)btResponse->Data, 0, 32);
+                ((float *)&btResponse->Data[0])[0] = variables[i].Time;
+                ((float *)&btResponse->Data[0])[1] = *(float *)variables[i].ValPtr;
+                memcpy((void *)&btResponse->Data[sizeof(float) + sizeof(float)], variables[i].Name, 8);
+
                 core3_bt_send_data_len((uint8_t *)btResponse, sizeof(btDataStruc));
             }
         }

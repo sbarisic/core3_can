@@ -277,6 +277,13 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
     }
 }
 
+static void restart_func(void *a)
+{
+    vTaskDelay(pdMS_TO_TICKS(250));
+    esp_set_time_from_rtc();
+    esp_restart();
+}
+
 static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if,
                                         esp_ble_gatts_cb_param_t *param)
 {
@@ -355,6 +362,15 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                     core3_var_watch_set(true);
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+            }
+            else if (btData.ID == btDataID_VAR_RBOOT)
+            {
+                btDataStruc btResponse;
+                btResponse.ID = btDataID_VAR_RBOOT_RESP;
+                btResponse.Counter = btData.Counter;
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+
+                xTaskCreate(restart_func, "rebooting", 1024 * 4, NULL, 1, NULL);
             }
         }
 

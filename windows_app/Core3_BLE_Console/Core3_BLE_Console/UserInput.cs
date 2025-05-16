@@ -116,6 +116,11 @@ namespace Core3_BLE_Console {
 				do {
 					Keycode = (KeyboardKey)Raylib.GetKeyPressed();
 
+					if (Raylib.IsMouseButtonReleased(MouseButton.Right)) {
+						OnKey = null;
+						StopInput();
+					}
+
 					if (Keycode == KeyboardKey.Escape) {
 						OnKey = null;
 						StopInput();

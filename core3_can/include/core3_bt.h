@@ -22,7 +22,10 @@ extern "C"
         btDataID_RAM_READ_RESP,
 
         btDataID_VAR_WATCH,
-        btDataID_VAR_WATCH_RESP
+        btDataID_VAR_WATCH_RESP,
+
+        btDataID_VAR_RBOOT,
+        btDataID_VAR_RBOOT_RESP,
     } btDataID;
 
     typedef struct PACKED_ATTR

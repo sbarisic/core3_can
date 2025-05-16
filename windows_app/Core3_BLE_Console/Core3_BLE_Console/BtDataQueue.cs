@@ -20,7 +20,10 @@ namespace Core3_BLE_Console {
 		RAM_READ_RESP,
 
 		VAR_WATCH,
-		VAR_WATCH_RESP
+		VAR_WATCH_RESP,
+
+		VAR_RBOOT,
+		VAR_RBOOT_RESP,
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -37,15 +40,32 @@ namespace Core3_BLE_Console {
 
 	delegate void BtSendFunc(byte[] SendBytes);
 
+	enum VarUnit : byte {
+		RAW = 0,
+		VOLT
+	}
+
 	class BtWatcherVariable {
+		public string Name;
 		public uint ID;
 		public uint Value;
 		public float Time;
+		public float ValueFloat;
 
-		public BtWatcherVariable(uint ID, uint Value, float Time) {
+		public BtWatcherVariable(string Name, uint ID, uint Value, float Time, float ValueFloat) {
+			this.Name = Name;
 			this.ID = ID;
 			this.Value = Value;
 			this.Time = Time;
+			this.ValueFloat = ValueFloat;
+		}
+
+		public override string ToString() {
+			if (!string.IsNullOrEmpty(Name)) {
+				return string.Format("{0} = {1}", Name.Trim(), ValueFloat);
+			}
+
+			return ValueFloat.ToString();
 		}
 	}
 
@@ -105,30 +125,43 @@ namespace Core3_BLE_Console {
 			return false;
 		}
 
+		byte[] NameBytes = new byte[8];
+
 		bool ProcessDataReturn(BtData Return) {
 			if (Return.ID == IDType.VAR_WATCH_RESP) {
 				uint Var = Return.Data1;
 				uint Val = Return.Data2;
-				float Sec = *(float*)Return.Data;
+				float Sec = ((float*)Return.Data)[0];
+				float Valf = ((float*)Return.Data)[1];
+
+				for (int i = 0; i < 8; i++) {
+					NameBytes[i] = Return.Data[8 + i];
+				}
+
+				string Name = Encoding.ASCII.GetString(NameBytes);
 
 				if (Variables.ContainsKey(Var)) {
 					Variables[Var].Value = Val;
 					Variables[Var].Time = Sec;
+					Variables[Var].ValueFloat = Valf;
+					Variables[Var].Name = Name;
 				} else {
-					Variables[Var] = new BtWatcherVariable(Var, Val, Sec);
+					Variables[Var] = new BtWatcherVariable(Name, Var, Val, Sec, Valf);
 				}
 
 				//Console.WriteLine("[{0}] {1} = {2}", MathF.Round(Sec, 4), Var, Val);
+			} else if (Return.ID == IDType.VAR_RBOOT_RESP) {
+				Console.WriteLine("ECU Rebooting");
 			}
 
 			return false;
 		}
 
-		public BtWatcherVariable GetVariable(uint Var) {
+		public BtWatcherVariable GetVariable(string Name, uint Var) {
 			if (Variables.ContainsKey(Var))
 				return Variables[Var];
 
-			Variables.Add(Var, new BtWatcherVariable(Var, 0, 0));
+			Variables.Add(Var, new BtWatcherVariable(Name, Var, 0, 0, 0));
 			return Variables[Var];
 		}
 
