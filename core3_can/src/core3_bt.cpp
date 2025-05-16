@@ -69,7 +69,6 @@ static const uint8_t spp_adv_data[23] = {
     0x03, 0x03, 0xF0, 0xAB,
     /* Complete Local Name in advertising */
     0x0F, 0x09, 'E', 'S', 'P', '_', 'S', 'P', 'P', '_', 'S', 'E', 'R', 'V', 'E', 'R'};
-    
 
 static volatile uint16_t spp_mtu_size = SPP_GATT_MTU_SIZE;
 static volatile uint16_t spp_conn_id = 0xffff;
@@ -341,6 +340,19 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.ID = btDataID_CAL_ERASE_RESP;
                 btResponse.Counter = btData.Counter;
                 btResponse.Data1 = core3_flash_cal_erase(btData.Data1, btData.Data2);
+
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+            }
+            else if (btData.ID == btDataID_VAR_WATCH)
+            {
+                btDataStruc btResponse;
+                btResponse.ID = btDataID_VAR_WATCH_RESP;
+                btResponse.Counter = btData.Counter;
+
+                if (core3_var_watch_is_enabled())
+                    core3_var_watch_set(false);
+                else
+                    core3_var_watch_set(true);
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
             }

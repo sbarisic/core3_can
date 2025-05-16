@@ -62,6 +62,9 @@
 #define CORE3_CAN_RECEIVE_PRIORITY 5
 
 #define CORE3_VAR_ANALOG0 0x1
+#define CORE3_VAR_ANALOG1 0x2
+#define CORE3_VAR_ANALOG2 0x3
+#define CORE3_VAR_ANALOG3 0x4
 
 #if defined(__cplusplus)
 extern "C"
@@ -71,6 +74,9 @@ extern "C"
     void app_main();
     void core3_init();
     size_t core3_round_up(size_t numToRound, size_t multiple);
+
+    bool core3_var_watch_is_enabled();
+    void core3_var_watch_set(bool enabled);
     
 #if defined(__cplusplus)
 }

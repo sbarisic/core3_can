@@ -176,7 +176,12 @@ void init_gpio_pins()
     adc_oneshot_chan_cfg_t config = {
         .atten = ADC_ATTEN_DB_12,
         .bitwidth = ADC_BITWIDTH_DEFAULT};
+
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA0_CH, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA1_CH, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA2_CH, &config));
+    ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, GPIOA3_CH, &config));
+
     vTaskDelay(pdMS_TO_TICKS(10));
 }
 
@@ -224,6 +229,18 @@ static uint64_t can_stream_interval = 60;
 static uint64_t io_poll_last = 0;
 static uint64_t io_poll_interval = 80;
 
+static bool var_watch_enabled = false;
+
+bool core3_var_watch_is_enabled()
+{
+    return var_watch_enabled;
+}
+
+void core3_var_watch_set(bool enabled)
+{
+    var_watch_enabled = enabled;
+}
+
 void core3_tick(TimerHandle_t timer)
 {
     ms = esp_timer_get_time() / 1000;
@@ -237,20 +254,26 @@ void core3_tick(TimerHandle_t timer)
     {
         io_poll_last = ms;
         core3_var_set(CORE3_VAR_ANALOG0, core3_analog(GPIOA0_CH), ms / 1000.0f);
+        core3_var_set(CORE3_VAR_ANALOG1, core3_analog(GPIOA1_CH), ms / 1000.0f);
+        core3_var_set(CORE3_VAR_ANALOG2, core3_analog(GPIOA2_CH), ms / 1000.0f);
+        core3_var_set(CORE3_VAR_ANALOG3, core3_analog(GPIOA3_CH), ms / 1000.0f);
     }
 
     if (ms >= var_stream_last + var_stream_interval)
     {
         var_stream_last = ms;
 
-        for (size_t i = 0; i < var_count; i++)
+        if (var_watch_enabled)
         {
-            btResponse->ID = btDataID_VAR_WATCH_RESP;
-            btResponse->Counter = btDataID_VAR_WATCH_RESP;
-            btResponse->Data1 = variables[i].ID;
-            btResponse->Data2 = variables[i].Val;
-            *((float *)&btResponse->Data[0]) = variables[i].Time;
-            core3_bt_send_data_len((uint8_t *)btResponse, sizeof(btDataStruc));
+            for (size_t i = 0; i < var_count; i++)
+            {
+                btResponse->ID = btDataID_VAR_WATCH_RESP;
+                btResponse->Counter = btDataID_VAR_WATCH_RESP;
+                btResponse->Data1 = variables[i].ID;
+                btResponse->Data2 = variables[i].Val;
+                *((float *)&btResponse->Data[0]) = variables[i].Time;
+                core3_bt_send_data_len((uint8_t *)btResponse, sizeof(btDataStruc));
+            }
         }
     }
 

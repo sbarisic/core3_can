@@ -23,12 +23,14 @@ namespace Core3_BLE_Console.UI {
 
 		float MaxValue = 4500;
 
-		float SampleInterval = 5 / 128.0f;
+		float SampleInterval = 5 / 64.0f;
 		float LastSampleTime = 0;
-		BtWatcherVariable Variable;
 
-		float[] SamplesNormal = new float[128];
-		uint[] SamplesRaw = new uint[128];
+		public BtWatcherVariable Variable;
+		public Color GraphColor = Color.White;
+
+		float[] SamplesNormal = new float[64];
+		uint[] SamplesRaw = new uint[64];
 
 		Raylib_cs.Image GraphImage;
 		Texture2D GraphTex;
@@ -37,7 +39,7 @@ namespace Core3_BLE_Console.UI {
 			ElementPosition = new Vector2(110, 110);
 			ElementSize = new Vector2(800, 150);
 
-			Variable = Bluetooth.GetDataQueue().GetVariable(0x1);
+			//Variable = Bluetooth.GetDataQueue().GetVariable(0x1);
 
 			GraphImage = Raylib.GenImageColor((int)ElementSize.X, (int)ElementSize.Y, new Color(0, 0, 0, 0));
 			GraphTex = Raylib.LoadTextureFromImage(GraphImage);
@@ -110,7 +112,7 @@ namespace Core3_BLE_Console.UI {
 
 					float Val = SamplesNormal[SamplesIdx] * ElementSize.Y;
 
-					Raylib.ImageDrawRectangle(GraphImagePtr, i, (int)ElementSize.Y - (int)Val, 1, (int)Val, Color.White);
+					Raylib.ImageDrawRectangle(GraphImagePtr, i, (int)ElementSize.Y - (int)Val, 1, (int)Val, GraphColor);
 				}
 
 				Raylib.ImageDrawLineV(ref GraphImage, new Vector2(0, ElementSize.Y - HeightMax), new Vector2(ElementSize.X, ElementSize.Y - HeightMax), Color.Orange);

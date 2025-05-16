@@ -39,13 +39,35 @@ namespace Core3_BLE_Console {
 			DrawFont = Raylib.LoadFontEx("data/fonts/mmrtext.ttf", FontSize, null, 250);
 			//DrawFont = Raylib.LoadFontEx("data/fonts/Enwallowify_Medium.ttf", FontSize, null, 250);
 
+			BtDataQueue DQ = Bluetooth.GetDataQueue();
+
 			UInput = new UserInput(DrawFont, FontSpacing, FontSize);
-			
+
 			UITable TestTable = new UITable(DrawFont, FontSpacing, FontSize, UInput);
 			//AddUIElement(TestTable);
 
-			UIGraph TestGraph = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
-			AddUIElement(TestGraph);
+			UIGraph TestGraph0 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
+			TestGraph0.Variable = DQ.GetVariable(0x1);
+			TestGraph0.GraphColor = new Color(134, 181, 147);
+			AddUIElement(TestGraph0);
+
+			UIGraph TestGraph1 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
+			TestGraph1.Variable = DQ.GetVariable(0x2);
+			TestGraph1.GraphColor = new Color(134, 173, 181);
+			TestGraph1.ElementPosition += new Vector2(0, 150 * 1);
+			AddUIElement(TestGraph1);
+
+			UIGraph TestGraph2 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
+			TestGraph2.Variable = DQ.GetVariable(0x3);
+			TestGraph2.GraphColor = new Color(181, 134, 139);
+			TestGraph2.ElementPosition += new Vector2(0, 150 * 2);
+			AddUIElement(TestGraph2);
+
+			UIGraph TestGraph3 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
+			TestGraph3.Variable = DQ.GetVariable(0x4);
+			TestGraph3.GraphColor = new Color(176, 181, 134);
+			TestGraph3.ElementPosition += new Vector2(0, 150 * 3);
+			AddUIElement(TestGraph3);
 
 			UIToolbar Toolbar = new UIToolbar(DrawFont, FontSpacing, FontSize, UInput);
 			Toolbar.AddButton("Download Cal", () => { DownloadCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());

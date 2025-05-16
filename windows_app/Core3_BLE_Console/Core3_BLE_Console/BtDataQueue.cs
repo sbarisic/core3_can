@@ -118,7 +118,7 @@ namespace Core3_BLE_Console {
 					Variables[Var] = new BtWatcherVariable(Var, Val, Sec);
 				}
 
-				Console.WriteLine("[{0}] {1} = {2}", MathF.Round(Sec, 4), Var, Val);
+				//Console.WriteLine("[{0}] {1} = {2}", MathF.Round(Sec, 4), Var, Val);
 			}
 
 			return false;

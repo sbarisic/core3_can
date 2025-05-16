@@ -146,7 +146,7 @@ namespace Core3_BLE_Console {
 		}
 
 		public bool Cmd_VarWatchResp(uint Var, uint Val) {
-			Console.WriteLine("{0} = {1}", Var, Val);
+			//Console.WriteLine("{0} = {1}", Var, Val);
 			return true;
 		}
 	}
