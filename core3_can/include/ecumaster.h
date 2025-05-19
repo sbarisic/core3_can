@@ -139,7 +139,8 @@ extern "C"
         F_BOOST_MAP_SET = (1 << 6) // Current set of boost parameters
     } OUTFLAGS4;
 
-    bool core3_can_decode_emu_frame(core3_can_msg *frame, emu_data_t *emu_data);
+    bool core3_can_decode_emu_frame(void *frame, emu_data_t *emu_data);
+    void core3_ecu_add_ecumaster_frame(emu_data_t emu_data);
 
 #if defined(__cplusplus)
 }

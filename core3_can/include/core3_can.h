@@ -5,6 +5,7 @@ extern "C"
 {
 #endif
 
+
     typedef enum
     {
         CORE3_CAN_MODE_NORMAL = 0,

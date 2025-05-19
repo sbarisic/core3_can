@@ -3,6 +3,7 @@
 #include <core3_flash.h>
 #include <core3_gmlan.h>
 #include <core3_gpio.h>
+#include <core3_map.h>
 #include <ecumaster.h>
 #include <esp_timer.h>
 
@@ -20,19 +21,29 @@ typedef struct
     core3_can_msg frame;
     int64_t next_send;
     int16_t send_interval;
+
+    uint8_t counter_offset_byte;
+    uint8_t counter_offset_bit;
+    uint8_t counter_bit_width;
 } can_message;
 
 typedef struct
 {
-    uint32_t ID;
-    uint32_t *ValPtr;
+    coreVarName_t ID;
+    varType_t VarType;
+
+    union
+    {
+        float *Float;
+        uint32_t *Uint32;
+    } ValPtr;
+
     float Time;
     char Name[8];
 } watcher_var;
 
 static size_t var_count = 0;
 static watcher_var variables[16];
-static core3_io_digital core3_io_digitals[16];
 
 // ====================================== Variables ======================================
 
@@ -201,7 +212,7 @@ void init_gpio_pins()
 
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    dprintf("Calibration scheme version is %s", "Line Fitting");
+    dprintf("Calibration scheme version is %s\n", "Line Fitting");
     adc_cali_line_fitting_config_t cali_config = {
         .unit_id = ADC_UNIT_1,
         .atten = ADC_ATTEN_DB_12,
@@ -210,13 +221,27 @@ void init_gpio_pins()
     ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config, &adc1_cali_handle));
 }
 
-bool core3_var_set(const char *name, uint32_t var, uint32_t val, float time)
+bool core3_var_set(const char *name, coreVarName_t var, varType_t varType, float valf, uint32_t valu, float time)
 {
     for (size_t i = 0; i < var_count; i++)
     {
         if (variables[i].ID == var)
         {
-            *variables[i].ValPtr = val;
+            variables[i].VarType = varType;
+
+            if (varType == VARTYPE_FLOAT)
+            {
+                *variables[i].ValPtr.Float = valf;
+            }
+            else if (varType == VARTYPE_UINT32)
+            {
+                *variables[i].ValPtr.Uint32 = valu;
+            }
+            else
+            {
+                dprintf("[ERROR] core3_var_set varType\n");
+            }
+
             variables[i].Time = time;
             memcpy(variables[i].Name, name, 8);
             return true;
@@ -225,23 +250,54 @@ bool core3_var_set(const char *name, uint32_t var, uint32_t val, float time)
 
     size_t newidx = var_count++;
     variables[newidx].ID = var;
-    variables[newidx].ValPtr = &core3_io_digitals[newidx].raw_value;
+    variables[newidx].VarType = VARTYPE_FLOAT;
+    variables[newidx].ValPtr.Float = (float *)malloc(sizeof(float));
     variables[newidx].Time = time;
     memcpy(variables[newidx].Name, name, 8);
     return true;
 }
 
-uint32_t core3_var_get(uint32_t var)
+varType_t core3_var_get(coreVarName_t var, float *out_varf, uint32_t *out_varu, float *out_time)
 {
     for (size_t i = 0; i < var_count; i++)
     {
         if (variables[i].ID == var)
         {
-            return *variables[i].ValPtr;
+            if (out_time != NULL)
+                *out_time = variables[i].Time;
+
+            varType_t varType = variables[i].VarType;
+
+            if (varType == VARTYPE_FLOAT)
+            {
+                if (out_varf != NULL)
+                    *out_varf = *variables[i].ValPtr.Float;
+
+                return varType;
+            }
+            else if (varType == VARTYPE_UINT32)
+            {
+                if (out_varu != NULL)
+                    *out_varu = *variables[i].ValPtr.Uint32;
+
+                return varType;
+            }
+            else
+            {
+                dprintf("[ERROR] core3_var_get varType\n");
+            }
+
+            break;
         }
     }
 
-    return 0;
+    if (out_time != NULL)
+        *out_time = 0.0f;
+
+    if (out_varf != NULL)
+        *out_varf = 0;
+
+    return VARTYPE_FLOAT;
 }
 
 static volatile btDataStruc *btResponse;
@@ -258,7 +314,10 @@ static uint64_t io_poll_last = 0;
 static uint64_t io_poll_interval = 80;
 
 static uint64_t logic_last = 0;
-static uint64_t logic_interval = 80;
+static uint64_t logic_interval = 10;
+
+static uint64_t logic_ltft_last = 0;
+static uint64_t logic_ltft_interval = 500;
 
 static bool var_watch_enabled = false;
 
@@ -289,6 +348,11 @@ void core3_io_digital_calc(core3_io_digital *dig)
     }
 }
 
+uint32_t core3_time_ms()
+{
+    return (uint32_t)(esp_timer_get_time() / 1000);
+}
+
 void core3_tick(TimerHandle_t timer)
 {
     ms = esp_timer_get_time() / 1000;
@@ -298,56 +362,10 @@ void core3_tick(TimerHandle_t timer)
 
     // can_channel_turn_on_IPC();
 
-    if (ms >= logic_last + logic_interval)
+    if (ms >= logic_ltft_last + logic_ltft_interval)
     {
-        logic_last = ms;
-
-        for (size_t i = 0; i < sizeof(core3_io_digitals) / sizeof(*core3_io_digitals); i++)
-        {
-            core3_io_digitals[i].trigger_value = 1000;
-            core3_io_digitals[i].hyst = 100;
-            core3_io_digital_calc(&core3_io_digitals[i]);
-        }
-
-        uint32_t base_can_id = 0x640;
-        int dig_id = 8;
-
-        if (core3_io_digitals[dig_id].can_sent == 0xFF && core3_io_digitals[dig_id].can_sent == 0xFF &&
-            core3_io_digitals[dig_id].can_sent == 0xFF)
-        {
-            core3_io_digitals[dig_id].can_sent = 0;
-            core3_io_digitals[dig_id].hyst = 0;
-            core3_io_digitals[dig_id].trigger_value = 0;
-            core3_io_digitals[dig_id].can_id = base_can_id;
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[0] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG0);
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[1] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG1);
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[2] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG2);
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[3] = (uint16_t)core3_var_get(CORE3_VAR_ANALOG3);
-            dig_id++;
-
-            core3_io_digitals[dig_id].can_sent = 0;
-            core3_io_digitals[dig_id].hyst = 0;
-            core3_io_digitals[dig_id].trigger_value = 0;
-            core3_io_digitals[dig_id].can_id = base_can_id + 1;
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[0] = core3_io_digitals[0].value;
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[1] = core3_io_digitals[1].value;
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[2] = core3_io_digitals[2].value;
-            ((uint16_t *)core3_io_digitals[dig_id].can_data)[3] = core3_io_digitals[3].value;
-
-            core3_io_digitals[dig_id].can_sent = 0;
-            core3_io_digitals[dig_id].hyst = 0;
-            core3_io_digitals[dig_id].trigger_value = 0;
-            core3_io_digitals[dig_id].can_id = base_can_id + 2;
-            (core3_io_digitals[dig_id].can_data)[0] = 0x0;
-            (core3_io_digitals[dig_id].can_data)[1] = 0x0;
-            (core3_io_digitals[dig_id].can_data)[2] = 0x0;
-            (core3_io_digitals[dig_id].can_data)[3] = 0x0;
-            (core3_io_digitals[dig_id].can_data)[4] = 0x0;
-            (core3_io_digitals[dig_id].can_data)[5] = 0x0;
-            (core3_io_digitals[dig_id].can_data)[6] = 0x0;
-            (core3_io_digitals[dig_id].can_data)[7] = can_heartbeat++;
-            dig_id++;
-        }
+        logic_ltft_last = ms;
+        core3_ecu_ltft_tick();
     }
 
     if (ms >= io_poll_last + io_poll_interval)
@@ -362,15 +380,10 @@ void core3_tick(TimerHandle_t timer)
         core3_analog(GPIOA2_CH, &v2);
         core3_analog(GPIOA3_CH, &v3);
 
-        core3_var_set("Analog0 ", CORE3_VAR_ANALOG0, *(uint32_t *)&v0, time);
-        core3_var_set("Analog1 ", CORE3_VAR_ANALOG1, *(uint32_t *)&v1, time);
-        core3_var_set("Analog2 ", CORE3_VAR_ANALOG2, *(uint32_t *)&v2, time);
-        core3_var_set("Analog3 ", CORE3_VAR_ANALOG3, *(uint32_t *)&v3, time);
-
-        core3_var_set("Digital0", CORE3_VAR_DIG0, core3_io_digitals[8].value, time);
-        core3_var_set("Digital1", CORE3_VAR_DIG1, core3_io_digitals[8 + 1].value, time);
-        core3_var_set("Digital2", CORE3_VAR_DIG2, core3_io_digitals[8 + 2].value, time);
-        core3_var_set("Digital3", CORE3_VAR_DIG3, core3_io_digitals[8 + 3].value, time);
+        core3_var_set("Analog0 ", VAR_ANALOG0, VARTYPE_FLOAT, v0, 0, time);
+        core3_var_set("Analog1 ", VAR_ANALOG1, VARTYPE_FLOAT, v1, 0, time);
+        core3_var_set("Analog2 ", VAR_ANALOG2, VARTYPE_FLOAT, v2, 0, time);
+        core3_var_set("Analog3 ", VAR_ANALOG3, VARTYPE_FLOAT, v3, 0, time);
     }
 
     if (ms >= var_stream_last + var_stream_interval)
@@ -384,11 +397,11 @@ void core3_tick(TimerHandle_t timer)
                 btResponse->ID = btDataID_VAR_WATCH_RESP;
                 btResponse->Counter = btDataID_VAR_WATCH_RESP;
                 btResponse->Data1 = variables[i].ID;
-                btResponse->Data2 = *variables[i].ValPtr;
+                btResponse->Data2 = *variables[i].ValPtr.Uint32;
 
                 memset((void *)btResponse->Data, 0, 32);
                 ((float *)&btResponse->Data[0])[0] = variables[i].Time;
-                ((float *)&btResponse->Data[0])[1] = *(float *)variables[i].ValPtr;
+                ((float *)&btResponse->Data[0])[1] = *variables[i].ValPtr.Float;
                 memcpy((void *)&btResponse->Data[sizeof(float) + sizeof(float)], variables[i].Name, 8);
 
                 core3_bt_send_data_len((uint8_t *)btResponse, sizeof(btDataStruc));
@@ -419,6 +432,8 @@ void core3_program(void *arg)
     core3_bt_init();
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
+
+    core3_ecu_init();
 
     dprintf("Done!\n");
 

@@ -2,8 +2,10 @@
 #include <core3_can.h>
 #include <ecumaster.h>
 
-bool core3_can_decode_emu_frame(core3_can_msg *frame, emu_data_t *emu_data)
+bool core3_can_decode_emu_frame(void *frame_ptr, emu_data_t *emu_data)
 {
+    core3_can_msg *frame = (core3_can_msg*)frame_ptr;
+
     uint8_t *data = frame->data;
     uint32_t can_id = frame->identifier;
     uint8_t can_dlc = frame->data_length_code;

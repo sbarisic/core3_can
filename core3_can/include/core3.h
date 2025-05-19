@@ -61,42 +61,56 @@
 #define CORE3_CAN_SEND_PRIORITY 4
 #define CORE3_CAN_RECEIVE_PRIORITY 5
 
-#define CORE3_VAR_ANALOG0 0x1
-#define CORE3_VAR_ANALOG1 0x2
-#define CORE3_VAR_ANALOG2 0x3
-#define CORE3_VAR_ANALOG3 0x4
-
-#define CORE3_VAR_DIG0 0x8
-#define CORE3_VAR_DIG1 0x9
-#define CORE3_VAR_DIG2 0x10
-#define CORE3_VAR_DIG3 0x11
-
 #if defined(__cplusplus)
 extern "C"
 {
 #endif
+    typedef enum
+    {
+        VARTYPE_FLOAT,
+        VARTYPE_UINT32
+    } varType_t;
+
+    typedef enum
+    {
+        VAR_ANALOG0 = 1,
+        VAR_ANALOG1 = 2,
+        VAR_ANALOG2 = 3,
+        VAR_ANALOG3 = 4,
+        VAR_DIG0 = 8,
+        VAR_DIG1 = 9,
+        VAR_DIG2 = 10,
+        VAR_DIG3 = 11
+    } coreVarName_t;
 
     typedef struct PACKED_ATTR
     {
         uint8_t value;
-        uint32_t raw_value;
+        float raw_value;
 
-        uint32_t trigger_value;
-        uint32_t hyst;
-
-        uint8_t can_sent;
-        uint32_t can_id;
-        uint8_t can_data[8];
-        uint64_t last_sent;
-        uint64_t send_interval;
+        float trigger_value;
+        float hyst;
     } core3_io_digital;
 
     void app_main();
     void core3_init();
     size_t core3_round_up(size_t numToRound, size_t multiple);
 
+    uint32_t core3_time_ms();
+
     bool core3_var_watch_is_enabled();
     void core3_var_watch_set(bool enabled);
+
+    varType_t core3_var_get(coreVarName_t var, float *out_varf, uint32_t *out_varu, float *out_time);
+    bool core3_var_set(const char *name, coreVarName_t var, varType_t varType, float valf, uint32_t valu, float time);
+
+    // core3.cpp
+
+    void core3_ecu_tick();
+    void core3_ecu_ltft_tick();
+    bool core3_emu_available();
+    uint8_t core3_octane_factor_get();
+    uint8_t core3_long_term_fuel_trim();
 
 #if defined(__cplusplus)
 }
