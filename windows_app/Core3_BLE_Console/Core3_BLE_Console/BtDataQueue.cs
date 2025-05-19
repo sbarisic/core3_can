@@ -35,7 +35,20 @@ namespace Core3_BLE_Console {
 		public uint Data2;
 
 		public fixed byte Data[32];
+	}
 
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	unsafe struct Core3MapAxis {
+		public int len;
+		ushort[] axis;
+	}
+
+	[StructLayout(LayoutKind.Sequential, Pack = 1)]
+	unsafe struct Core3Map {
+		public Core3MapAxis X;
+		public Core3MapAxis Y;
+
+		public byte[] Memory;
 	}
 
 	delegate void BtSendFunc(byte[] SendBytes);
@@ -87,7 +100,7 @@ namespace Core3_BLE_Console {
 		public void Update(BtSendFunc BtSend) {
 			lock (Lck) {
 				if (TryDequeueSend(out BtData BtCmd)) {
-					Console.WriteLine(">> TryDequeueSend Counter {0}", BtCmd.Counter);
+					//Console.WriteLine(">> TryDequeueSend Counter {0}", BtCmd.Counter);
 
 					if (TryAddReturnList(BtCmd)) {
 						//BluetoothSend(Characteristics[0], BtCmd);

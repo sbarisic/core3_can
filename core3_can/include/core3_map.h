@@ -17,6 +17,7 @@
 extern "C"
 {
 #endif
+
     typedef struct
     {
         int len;
@@ -33,10 +34,10 @@ extern "C"
     core3_map_t core3_map_create(uint16_t *x_axis, int x_len, uint16_t *y_axis, int y_len);
     size_t core3_map_sizeof(int x_len, int y_len);
 
-    uint8_t *core3_map_idx_raw(core3_map_t *map, size_t x, size_t y);
+    uint8_t core3_map_idx_raw(core3_map_t *map, int x, int y);
 
     uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y,
-                            uint8_t **outA, uint8_t **outB, uint8_t **outC, uint8_t **outD);
+                            uint8_t *outA, uint8_t *outB, uint8_t *outC, uint8_t *outD);
 
     size_t core3_map_serialize(core3_map_t *map, void *dest_memory);
     void core3_ecu_init();

@@ -92,46 +92,48 @@ float byte_to_correction(uint8_t byte)
     return (75 + ((125 - 75) * (float)(byte / 255.0f))) / 100.0f;
 }
 
-static DRAM_ATTR uint8_t flash_mem[940];
-
 void core3_ecu_init()
 {
     MapLTFT = core3_map_create(AxisX_LFTF, sizeof(AxisX_LFTF) / sizeof(*AxisX_LFTF), AxisY_LFTF, sizeof(AxisY_LFTF) / sizeof(*AxisY_LFTF));
-    *core3_map_idx_raw(&MapLTFT, 0, 0) = correction_to_byte(0.92);
-    *core3_map_idx_raw(&MapLTFT, 0, 1) = correction_to_byte(1.02);
-    *core3_map_idx_raw(&MapLTFT, 1, 1) = correction_to_byte(1.03);
-    *core3_map_idx_raw(&MapLTFT, 1, 0) = correction_to_byte(0.91);
+    //*core3_map_idx_raw(&MapLTFT, 0, 0) = correction_to_byte(0.92);
+    //*core3_map_idx_raw(&MapLTFT, 0, 1) = correction_to_byte(1.02);
+    //*core3_map_idx_raw(&MapLTFT, 1, 1) = correction_to_byte(1.03);
+    //*core3_map_idx_raw(&MapLTFT, 1, 0) = correction_to_byte(0.91);
 
-    size_t map_size = core3_map_sizeof(MapLTFT.x.len, MapLTFT.y.len);
+    size_t map_size = 960;
     dprintf("mem_size = %u\n", map_size);
 
-    memset(flash_mem, 0, map_size);
-    size_t write_len = core3_map_serialize(&MapLTFT, flash_mem);
+    //uint8_t *flash_mem = (uint8_t *)malloc(960);
+    //memset(flash_mem, 0, map_size);
 
-    dprintf("write_len = %u\n", write_len);
+    //size_t write_len = core3_map_serialize(&MapLTFT, &flash_mem[0]);
+    //dprintf("write_len = %u\n", write_len);
 
-    //core3_flash_cal_erase(0, 0);
-    //core3_flash_cal_write(0x100, flash_mem, map_size);
-    vTaskDelay(pdMS_TO_TICKS(500));
+    //free(flash_mem);
 
+    // core3_flash_cal_erase(0, 0);
+    // core3_flash_cal_write(0x100, flash_mem, map_size);
+    // vTaskDelay(pdMS_TO_TICKS(500));
+
+    /**dprintf("Indexing map\n");
     uint8_t map_val = core3_map_index(&MapLTFT, 5, 878, NULL, NULL, NULL, NULL);
     dprintf("MAP_VAL = 0x%02X, %d, %f\n", map_val, (int)map_val, byte_to_correction(map_val));
 
-    dprintf("LTFT X = %d, Y = %d\n", MapLTFT.x.len, MapLTFT.y.len);
+    dprintf("LTFT X = %d, Y = %d\n", MapLTFT.x.len, MapLTFT.y.len);*/
 }
 
 void core3_init()
 {
     esp_log_level_set("*", ESP_LOG_NONE);
 
-    /* // Initialize NVS
-     esp_err_t ret = nvs_flash_init();
-     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
-     {
-         dprintf("Doing nvs_flash_erase()\n");
-         ESP_ERROR_CHECK(nvs_flash_erase());
-         ret = nvs_flash_init();
-     }*/
+    // Initialize NVS
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        dprintf("Doing nvs_flash_erase()\n");
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
 
     // core3_flash_init();
 }

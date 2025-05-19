@@ -68,16 +68,16 @@ uint16_t lerp_u16(uint16_t a, uint16_t b, float f)
     return (uint16_t)(a * (1.0f - f) + (b * f));
 }
 
-uint8_t *core3_map_idx_raw(core3_map_t *map, size_t x, size_t y)
+uint8_t core3_map_idx_raw(core3_map_t *map, int x, int y)
 {
     if (x < 0 || x >= map->x.len || y < 0 || y >= map->y.len)
-        return NULL;
+        return 0;
 
     size_t idx = y * map->x.len + x;
-    return &map->map_memory[idx];
+    return map->map_memory[idx];
 }
 
-uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t **outA, uint8_t **outB, uint8_t **outC, uint8_t **outD)
+uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t *outA, uint8_t *outB, uint8_t *outC, uint8_t *outD)
 {
     uint8_t X_Low;
     uint8_t X_High;
@@ -92,10 +92,10 @@ uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t **outA
     dprintf("Indexing XLow %d, XHigh %d, YLow %d, YHigh %d, Xf %f, Yf %f\n",
             (int)X_Low, (int)X_High, (int)Y_Low, (int)Y_High, X_Lerp, Y_Lerp);
 
-    uint8_t *A = core3_map_idx_raw(map, X_Low, Y_Low);
-    uint8_t *B = core3_map_idx_raw(map, X_Low, Y_High);
-    uint8_t *C = core3_map_idx_raw(map, X_High, Y_High);
-    uint8_t *D = core3_map_idx_raw(map, X_High, Y_Low);
+    uint8_t A = core3_map_idx_raw(map, X_Low, Y_Low);
+    uint8_t B = core3_map_idx_raw(map, X_Low, Y_High);
+    uint8_t C = core3_map_idx_raw(map, X_High, Y_High);
+    uint8_t D = core3_map_idx_raw(map, X_High, Y_Low);
 
     if (outA != NULL)
         *outA = A;
@@ -111,8 +111,8 @@ uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t **outA
 
     dprintf("A %d, B %d, C %d, D %d\n", (int)A, (int)B, (int)C, (int)D);
 
-    uint8_t HighMid = lerp_u8(*B, *C, X_Lerp);
-    uint8_t LowMid = lerp_u8(*A, *D, X_Lerp);
+    uint8_t HighMid = lerp_u8(B, C, X_Lerp);
+    uint8_t LowMid = lerp_u8(A, D, X_Lerp);
     uint8_t Mid = lerp_u8(LowMid, HighMid, Y_Lerp);
 
     return Mid;
@@ -122,14 +122,12 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
 {
     size_t idx = (size_t)dest_memory;
 
+    size_t unused1 = sizeof(uint16_t *);
+
     // X Axis
     {
         *(int *)idx = map->x.len;
         idx += sizeof(int);
-
-        uint16_t **mem_loc_ptr = ((uint16_t **)idx);
-        idx += sizeof(uint16_t *);
-        *mem_loc_ptr = (uint16_t *)idx;
 
         for (size_t i = 0; i < map->x.len; i++)
         {
@@ -143,10 +141,6 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
         *(int *)idx = map->y.len;
         idx += sizeof(int);
 
-        uint16_t **mem_loc_ptr = ((uint16_t **)idx);
-        idx += sizeof(uint16_t *);
-        *mem_loc_ptr = (uint16_t *)idx;
-
         for (size_t i = 0; i < map->y.len; i++)
         {
             ((uint16_t *)idx)[i] = map->y.axis[i];
@@ -156,20 +150,36 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
 
     // Memory
     {
-        uint8_t **mem_loc_ptr = ((uint8_t **)idx);
-        idx += sizeof(uint8_t *);
-
-        *mem_loc_ptr = (uint8_t *)idx;
         size_t mem_len = map->x.len * map->y.len;
 
         for (size_t i = 0; i < mem_len; i++)
         {
             ((uint16_t *)idx)[i] = map->map_memory[i];
         }
+
         idx += mem_len;
     }
 
-    return idx - (size_t)dest_memory;
+    size_t written_bytes = idx - (size_t)dest_memory;
+
+    dprintf("\n");
+
+    for (size_t i = 0; i < 32; i += 8)
+    {
+        for (size_t j = 0; j < 8; j++)
+        {
+            dprintf("%02X ", ((uint8_t *)dest_memory)[i + j]);
+
+            if (j == 3)
+                dprintf("| ");
+        }
+
+        dprintf("\n");
+    }
+
+    dprintf("\n");
+
+    return written_bytes;
 }
 
 void core3_map_deserialize(void *src_memory, core3_map_t *tgt_map)
@@ -178,15 +188,13 @@ void core3_map_deserialize(void *src_memory, core3_map_t *tgt_map)
 
     int x_len = *(int *)src_memory;
     idx += sizeof(int);
-    idx += sizeof(uint16_t *);
     uint16_t *x_axis = (uint16_t *)idx;
-    idx += x_len;
+    idx += x_len * sizeof(uint16_t);
 
     int y_len = *(int *)idx;
     idx += sizeof(int);
-    idx += sizeof(uint16_t *);
     uint16_t *y_axis = (uint16_t *)idx;
-    idx += y_len;
+    idx += y_len * sizeof(uint16_t);
 
     idx += sizeof(uint8_t *);
     uint8_t *map_memory = (uint8_t *)idx;

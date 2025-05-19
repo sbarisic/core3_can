@@ -46,7 +46,7 @@ namespace Core3_BLE_Console {
 			UITable TestTable = new UITable(DrawFont, FontSpacing, FontSize, UInput);
 			AddUIElement(TestTable);
 
-			UIGraph TestGraph0 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
+			/*UIGraph TestGraph0 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
 			TestGraph0.Variable = DQ.GetVariable("An0", 0x1);
 			TestGraph0.GraphColor = new Color(134, 181, 147);
 			AddUIElement(TestGraph0);
@@ -69,7 +69,7 @@ namespace Core3_BLE_Console {
 			TestGraph3.GraphColor = new Color(176, 181, 134);
 			TestGraph3.ElementPosition += new Vector2(0, 150 * 3);
 			TestGraph3.MaxValue = 300;
-			AddUIElement(TestGraph3);
+			AddUIElement(TestGraph3);*/
 
 			UIToolbar Toolbar = new UIToolbar(DrawFont, FontSpacing, FontSize, UInput);
 			Toolbar.AddButton("Download Cal", () => { DownloadCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
@@ -96,7 +96,7 @@ namespace Core3_BLE_Console {
 			MS.Write(Encoding.UTF8.GetBytes("Hello Memory World!"));
 			MS.Write(new byte[256 - MS.Position]);
 
-			OnMemReceived(TestTable, MS.ToArray());
+			//OnMemReceived(TestTable, MS.ToArray());
 		}
 
 		static void RebootECU() {
@@ -121,11 +121,11 @@ namespace Core3_BLE_Console {
 
 		static void DownloadCalibration(UITable Tbl) {
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x100, 940, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
+			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x100, 960, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
 
 			foreach (BtData Cmd in CmdArr) {
 				while (!DQ.TryEnqueueSend(Cmd))
-					Thread.Sleep(10);
+					Thread.Sleep(50);
 			}
 		}
 		static void EraseCalibration(UITable Tbl) {
@@ -152,7 +152,17 @@ namespace Core3_BLE_Console {
 		static void OnMemReceived(UITable TestTable, byte[] Mem) {
 			Console.WriteLine("Mem: {0}", Mem.Length);
 
-			string[] XLabels = new string[16];
+			MemoryStream MS = new MemoryStream(Mem);
+			MS.Seek(0, SeekOrigin.Begin);
+			BinaryReader BR = new BinaryReader(MS);
+
+
+
+			int XLen = BR.ReadInt32();
+			ushort[] XAxis = new ushort[XLen];
+
+
+			/*string[] XLabels = new string[16];
 
 			for (int i = 0; i < 16; i++) {
 				XLabels[i] = i.ToString("X2");
@@ -180,7 +190,7 @@ namespace Core3_BLE_Console {
 			TestTable.XDesc = "X";
 			TestTable.YDesc = "Y";
 			TestTable.XLabels = XLabels;
-			TestTable.YLabels = YLabels;
+			TestTable.YLabels = YLabels;*/
 		}
 
 		public static void Update() {

@@ -300,7 +300,7 @@ varType_t core3_var_get(coreVarName_t var, float *out_varf, uint32_t *out_varu, 
     return VARTYPE_FLOAT;
 }
 
-static volatile btDataStruc *btResponse;
+static volatile btDataStruc btResponse;
 static uint8_t can_heartbeat = 0;
 
 static uint64_t ms = 0;
@@ -330,23 +330,6 @@ void core3_var_watch_set(bool enabled)
 {
     var_watch_enabled = enabled;
 }
-
-/*void core3_io_digital_calc(core3_io_digital *dig)
-{
-    if (dig->trigger_value == 0)
-        return;
-
-    if (dig->value == 0x0)
-    {
-        if (dig->raw_value > dig->trigger_value + dig->hyst)
-            dig->value = 0xFF;
-    }
-    else
-    {
-        if (dig->raw_value < dig->trigger_value - dig->hyst)
-            dig->value = 0x0;
-    }
-}*/
 
 uint32_t core3_time_ms()
 {
@@ -394,17 +377,20 @@ void core3_tick(TimerHandle_t timer)
         {
             for (size_t i = 0; i < var_count; i++)
             {
-                btResponse->ID = btDataID_VAR_WATCH_RESP;
-                btResponse->Counter = btDataID_VAR_WATCH_RESP;
-                btResponse->Data1 = variables[i].ID;
-                btResponse->Data2 = *variables[i].ValPtr.Uint32;
+                btResponse.ID = btDataID_VAR_WATCH_RESP;
+                btResponse.Counter = btDataID_VAR_WATCH_RESP;
+                btResponse.Data1 = variables[i].ID;
+                btResponse.Data2 = *variables[i].ValPtr.Uint32;
 
-                memset((void *)btResponse->Data, 0, 32);
-                ((float *)&btResponse->Data[0])[0] = variables[i].Time;
-                ((float *)&btResponse->Data[0])[1] = *variables[i].ValPtr.Float;
-                memcpy((void *)&btResponse->Data[sizeof(float) + sizeof(float)], variables[i].Name, 8);
+                memset((void *)btResponse.Data, 0, 32);
+                ((float *)&btResponse.Data[0])[0] = variables[i].Time;
 
-                core3_bt_send_data_len((uint8_t *)btResponse, sizeof(btDataStruc));
+                if (variables[i].ValPtr.Float != NULL)
+                    ((float *)&btResponse.Data[0])[1] = *variables[i].ValPtr.Float;
+
+                memcpy((void *)&btResponse.Data[sizeof(float) + sizeof(float)], variables[i].Name, 8);
+
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
             }
         }
     }
@@ -425,26 +411,27 @@ void core3_tick(TimerHandle_t timer)
 
 void core3_program(void *arg)
 {
-    core3_flash_init();    
+    core3_flash_init();
     dprintf("Cal string: %s\n", (const char *)core3_flash_cal_offset(0x0));
-    
+
     core3_bt_init();
+
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
-    
-    //core3_ecu_init();
+
+    core3_ecu_init();
 
     dprintf("Done!\n");
 
-    btResponse = (btDataStruc *)malloc(sizeof(btDataStruc));
-    memset((void *)btResponse, 0, sizeof(btDataStruc));
+    // btResponse = (btDataStruc *)malloc(sizeof(btDataStruc));
+    memset((void *)&btResponse, 0, sizeof(btDataStruc));
 
-    TimerHandle_t core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(20), pdTRUE, NULL, core3_tick);
-    xTimerStart(core3_tick_timer, pdMS_TO_TICKS(10));
+    TimerHandle_t core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(10), pdTRUE, NULL, core3_tick);
+    xTimerStart(core3_tick_timer, pdMS_TO_TICKS(500));
 
     while (true)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
@@ -458,10 +445,10 @@ void app_main()
     gpio_set_direction(SDCARD_PIN_CS, GPIO_MODE_OUTPUT);
     gpio_set_level(SDCARD_PIN_CS, 1);
 
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     init_gpio_pins();
-    core3_init();
 
-    xTaskCreate(core3_program, "core3_program", 1024 * 60, NULL, CORE3_PROGRAM_PRIORITY, NULL);
+    core3_init();
+    xTaskCreate(core3_program, "core3_program", 1024 * 25, NULL, CORE3_PROGRAM_PRIORITY, NULL);
 }
