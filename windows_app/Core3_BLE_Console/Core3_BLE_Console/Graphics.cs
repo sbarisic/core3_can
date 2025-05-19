@@ -161,6 +161,36 @@ namespace Core3_BLE_Console {
 			int XLen = BR.ReadInt32();
 			ushort[] XAxis = new ushort[XLen];
 
+			for (int i = 0; i < XAxis.Length; i++) {
+				XAxis[i] = BR.ReadUInt16();
+			}
+
+			int YLen = BR.ReadInt32();
+			ushort[] YAxis = new ushort[YLen];
+
+			for (int i = 0; i < YAxis.Length; i++) {
+				YAxis[i] = BR.ReadUInt16();
+			}
+
+			byte[] Map = new byte[XLen * YLen];
+			byte[] Map2 = new byte[Map.Length];
+
+			for (int i = 0; i < Map.Length; i++) {
+				Map[i] = BR.ReadByte();
+				Map2[i] = Map[i];
+			}
+
+
+			TestTable.DataBackup = Map;
+			TestTable.Data = Map2;
+			TestTable.FlipY = false;
+			TestTable.Width = XLen;
+			TestTable.Height = YLen;
+			TestTable.TableDesc = "Hex View";
+			TestTable.XDesc = "X";
+			TestTable.YDesc = "Y";
+			TestTable.XLabels = XAxis.Select(X => X.ToString()).ToArray();
+			TestTable.YLabels = YAxis.Select(Y => Y.ToString()).ToArray();
 
 			/*string[] XLabels = new string[16];
 

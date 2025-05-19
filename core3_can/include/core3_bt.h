@@ -34,6 +34,7 @@ extern "C"
         uint8_t Counter;
         uint32_t Data1;
         uint32_t Data2;
+        uint32_t Data3;
         uint8_t Data[32];
     } btDataStruc;
 

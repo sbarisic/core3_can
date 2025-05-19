@@ -10,8 +10,8 @@ namespace Core3_BLE_Console {
 		static void Main(string[] args) {
 			Console.WriteLine("Starting");
 
-			WinWidth = 1680;
-			WinHeight = 900;
+			WinWidth = 1680 + 300;
+			WinHeight = 900 + 300;
 
 			Bluetooth.DoBluetooth();
 

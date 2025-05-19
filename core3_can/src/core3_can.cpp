@@ -504,8 +504,8 @@ int core3_can_init(core3_can_timing timing, core3_can_mode mode)
         return ESP_FAIL;
     }
 
-    xTaskCreate(core3_can_task_receive, "core3_can_task_receive", 1024 * 5, NULL, CORE3_CAN_RECEIVE_PRIORITY, NULL);
-    xTaskCreate(core3_can_task_send, "core3_can_task_send", 1024 * 5, NULL, CORE3_CAN_SEND_PRIORITY, NULL);
+    xTaskCreate(core3_can_task_receive, "core3_can_task_receive", 1024 * 10, NULL, CORE3_CAN_RECEIVE_PRIORITY, NULL);
+    xTaskCreate(core3_can_task_send, "core3_can_task_send", 1024 * 10, NULL, CORE3_CAN_SEND_PRIORITY, NULL);
 
     dprintf("core3_can_init - CAN ok\n");
     return ESP_OK;

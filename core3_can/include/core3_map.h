@@ -31,9 +31,10 @@ extern "C"
         uint8_t *map_memory;
     } PACKED_ATTR core3_map_t;
 
-    core3_map_t core3_map_create(uint16_t *x_axis, int x_len, uint16_t *y_axis, int y_len);
+    core3_map_t* core3_map_create(uint16_t *x_axis, int x_len, uint16_t *y_axis, int y_len);
     size_t core3_map_sizeof(int x_len, int y_len);
 
+    void core3_map_set_raw(core3_map_t *map, int x, int y, uint8_t val);
     uint8_t core3_map_idx_raw(core3_map_t *map, int x, int y);
 
     uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y,

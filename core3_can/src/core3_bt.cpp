@@ -326,6 +326,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.Counter = btData.Counter;
                 btResponse.Data1 = btData.Data1;
                 btResponse.Data2 = btData.Data2;
+                btResponse.Data3 = btData.Data3;
 
                 const void *flash_mem = core3_flash_cal_offset(btData.Data1);
                 memcpy(&btResponse.Data, flash_mem, btData.Data2);
@@ -337,6 +338,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btDataStruc btResponse;
                 btResponse.ID = btDataID_CAL_WRITE_RESP;
                 btResponse.Counter = btData.Counter;
+                btResponse.Data3 = btData.Data3;
                 btResponse.Data1 = core3_flash_cal_write(btData.Data1, &btData.Data[0], btData.Data2) ? 0x1 : 0x0;
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
@@ -346,6 +348,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btDataStruc btResponse;
                 btResponse.ID = btDataID_CAL_ERASE_RESP;
                 btResponse.Counter = btData.Counter;
+                btResponse.Data3 = btData.Data3;
                 btResponse.Data1 = core3_flash_cal_erase(btData.Data1, btData.Data2);
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
@@ -532,8 +535,8 @@ esp_err_t core3_bt_init()
     err = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
     if (err != ESP_OK)
     {
-        //dprintf("[Bluetooth] esp_bt_controller_mem_release FAILED, %X\n", err);
-        //return err;
+        dprintf("[Bluetooth] esp_bt_controller_mem_release FAILED, %X\n", err);
+        return err;
     }
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();

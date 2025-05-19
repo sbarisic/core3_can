@@ -22,6 +22,8 @@
         "*.rexx": "rexx",
         "core3.h": "c",
         "random": "cpp",
-        "functional": "cpp"
+        "functional": "cpp",
+        "algorithm": "cpp",
+        "format": "cpp"
     }
 }

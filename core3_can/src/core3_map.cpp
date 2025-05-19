@@ -77,6 +77,15 @@ uint8_t core3_map_idx_raw(core3_map_t *map, int x, int y)
     return map->map_memory[idx];
 }
 
+void core3_map_set_raw(core3_map_t *map, int x, int y, uint8_t val)
+{
+    if (x < 0 || x >= map->x.len || y < 0 || y >= map->y.len)
+        return;
+
+    size_t idx = y * map->x.len + x;
+    map->map_memory[idx] = val;
+}
+
 uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t *outA, uint8_t *outB, uint8_t *outC, uint8_t *outD)
 {
     uint8_t X_Low;
@@ -120,10 +129,9 @@ uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t *outA,
 
 size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
 {
-    size_t idx = (size_t)dest_memory;
+    uint8_t *idx = (uint8_t *)dest_memory;
 
-    size_t unused1 = sizeof(uint16_t *);
-
+    dprintf("X Axis\n");
     // X Axis
     {
         *(int *)idx = map->x.len;
@@ -136,6 +144,7 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
         idx += map->x.len * sizeof(uint16_t);
     }
 
+    dprintf("Y Axis\n");
     // Y Axis
     {
         *(int *)idx = map->y.len;
@@ -148,19 +157,20 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
         idx += map->y.len * sizeof(uint16_t);
     }
 
+    dprintf("Mem\n");
     // Memory
     {
         size_t mem_len = map->x.len * map->y.len;
 
         for (size_t i = 0; i < mem_len; i++)
         {
-            ((uint16_t *)idx)[i] = map->map_memory[i];
+            ((uint8_t *)idx)[i] = map->map_memory[i];
         }
 
         idx += mem_len;
     }
 
-    size_t written_bytes = idx - (size_t)dest_memory;
+    size_t written_bytes = (size_t)idx - (size_t)dest_memory;
 
     dprintf("\n");
 
@@ -206,25 +216,25 @@ void core3_map_deserialize(void *src_memory, core3_map_t *tgt_map)
     tgt_map->map_memory = map_memory;
 }
 
-core3_map_t core3_map_create(uint16_t *x_axis, int x_len, uint16_t *y_axis, int y_len)
+core3_map_t *core3_map_create(uint16_t *x_axis, int x_len, uint16_t *y_axis, int y_len)
 {
-    core3_map_t map = {0};
+    core3_map_t *map = (core3_map_t *)malloc(sizeof(core3_map_t));
 
-    map.x.len = x_len;
-    map.x.axis = (uint16_t *)malloc(sizeof(uint16_t) * x_len);
+    map->x.len = x_len;
+    map->x.axis = (uint16_t *)malloc(sizeof(uint16_t) * x_len);
     for (size_t i = 0; i < x_len; i++)
     {
-        map.x.axis[i] = x_axis[i];
+        map->x.axis[i] = x_axis[i];
     }
 
-    map.y.len = y_len;
-    map.y.axis = (uint16_t *)malloc(sizeof(uint16_t) * y_len);
+    map->y.len = y_len;
+    map->y.axis = (uint16_t *)malloc(sizeof(uint16_t) * y_len);
     for (size_t i = 0; i < y_len; i++)
     {
-        map.y.axis[i] = y_axis[i];
+        map->y.axis[i] = y_axis[i];
     }
 
-    map.map_memory = (uint8_t *)malloc(x_len * y_len);
+    map->map_memory = (uint8_t *)malloc(x_len * y_len);
 
     return map;
 }

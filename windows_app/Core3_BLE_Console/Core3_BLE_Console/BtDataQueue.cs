@@ -33,6 +33,7 @@ namespace Core3_BLE_Console {
 
 		public uint Data1;
 		public uint Data2;
+		public uint Data3;
 
 		public fixed byte Data[32];
 	}
@@ -132,7 +133,7 @@ namespace Core3_BLE_Console {
 					DataArr[i] = Return.Data[i];
 				}
 
-				Commands.Ret_CalReadResp(Orig.Counter, Orig.Data1, Orig.Data2, DataArr);
+				Commands.Ret_CalReadResp(Orig.Counter, Orig.Data1, Orig.Data2, Orig.Data3, DataArr);
 			}
 
 			return false;

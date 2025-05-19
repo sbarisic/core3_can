@@ -12,12 +12,12 @@ static uint16_t AxisY_LFTF[] = {
     3000, 3250, 3500, 3750, 4000, 4250, 4500, 4750,
     5000, 5250, 5500, 5750, 6000, 6250, 6500, 6750, 7000};
 
-static core3_map_t MapLTFT;
+core3_map_t *MapLTFT;
 
-static bool emu_available = false;
-static emu_data_t emu;
+bool emu_available = false;
+emu_data_t emu;
 
-static uint8_t octane_factor;
+uint8_t octane_factor;
 
 size_t core3_round_up(size_t numToRound, size_t multiple)
 {
@@ -56,7 +56,7 @@ uint8_t core3_long_term_fuel_trim()
     uint16_t RPM = emu.RPM;
     uint16_t MAP = emu.MAP;
 
-    return core3_map_index(&MapLTFT, MAP, RPM, NULL, NULL, NULL, NULL);
+    return core3_map_index(MapLTFT, MAP, RPM, NULL, NULL, NULL, NULL);
 }
 
 void core3_ecu_ltft_tick()
@@ -100,20 +100,29 @@ void core3_ecu_init()
     //*core3_map_idx_raw(&MapLTFT, 1, 1) = correction_to_byte(1.03);
     //*core3_map_idx_raw(&MapLTFT, 1, 0) = correction_to_byte(0.91);
 
+    for (size_t y = 0; y < MapLTFT->y.len; y++)
+    {
+        for (size_t x = 0; x < MapLTFT->x.len; x++)
+        {
+            core3_map_set_raw(MapLTFT, x,y, correction_to_byte(1.0f));
+        }
+    }
+
     size_t map_size = 960;
     dprintf("mem_size = %u\n", map_size);
 
-    //uint8_t *flash_mem = (uint8_t *)malloc(960);
-    //memset(flash_mem, 0, map_size);
+    uint8_t *flash_mem = (uint8_t *)malloc(960);
 
-    //size_t write_len = core3_map_serialize(&MapLTFT, &flash_mem[0]);
-    //dprintf("write_len = %u\n", write_len);
+    memset(flash_mem, 0, map_size);
 
-    //free(flash_mem);
+    size_t write_len = core3_map_serialize(MapLTFT, flash_mem);
+    dprintf("write_len = %u\n", write_len);
 
-    // core3_flash_cal_erase(0, 0);
-    // core3_flash_cal_write(0x100, flash_mem, map_size);
+    //core3_flash_cal_erase(0, 0);
+    //core3_flash_cal_write(0x100, flash_mem, map_size);
     // vTaskDelay(pdMS_TO_TICKS(500));
+
+    free(flash_mem);
 
     /**dprintf("Indexing map\n");
     uint8_t map_val = core3_map_index(&MapLTFT, 5, 878, NULL, NULL, NULL, NULL);

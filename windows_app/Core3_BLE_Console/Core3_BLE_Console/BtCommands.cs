@@ -20,7 +20,7 @@ namespace Core3_BLE_Console {
 		Action OnCalWriteCompleted;
 		Action OnEraseCompleted;
 
-		BtData CreateCommand(IDType CmdID, uint Data1, uint Data2) {
+		BtData CreateCommand(IDType CmdID, uint Data1, uint Data2, uint Data3) {
 			if (Counter >= 255)
 				Counter = 0;
 
@@ -29,6 +29,7 @@ namespace Core3_BLE_Console {
 			Dat.Counter = Counter++;
 			Dat.Data1 = Data1;
 			Dat.Data2 = Data2;
+			Dat.Data3 = Data3;
 
 			return Dat;
 		}
@@ -47,7 +48,7 @@ namespace Core3_BLE_Console {
 				if (x < Size && (x + 32) > Size)
 					CalcSize = Size - x;
 
-				BtData Cmd = CreateCommand(IDType.CAL_READ, Offset + x, CalcSize);
+				BtData Cmd = CreateCommand(IDType.CAL_READ, Offset + x, CalcSize, Offset);
 				ReadMemoryCount.Add(Cmd.Counter);
 				Cmds.Add(Cmd);
 			}
@@ -55,7 +56,7 @@ namespace Core3_BLE_Console {
 			return Cmds.ToArray();
 		}
 
-		public bool Ret_CalReadResp(int Counter, uint Offset, uint Size, byte[] DataArr) {
+		public bool Ret_CalReadResp(int Counter, uint Offset, uint Size, uint Offset2, byte[] DataArr) {
 			int Size2 = (int)Size;
 
 			/*if (Offset + Size >= 940)
@@ -64,7 +65,10 @@ namespace Core3_BLE_Console {
 			if (Size2 < 0)
 				return false;*/
 
-			Array.Copy(DataArr, 0, ReadMemoryArray,  (Counter * Size), Size2);
+			if (Offset < ReadMemoryArray.Length) {
+				Array.Copy(DataArr, 0, ReadMemoryArray, Offset - Offset2, Size2);
+			}
+
 			ReadMemoryReceived.Add(Counter);
 
 			foreach (var Count in ReadMemoryCount) {
@@ -92,7 +96,7 @@ namespace Core3_BLE_Console {
 				if (x < Size && (x + 32) > Size)
 					CalcSize = Size - x;
 
-				BtData Cmd = CreateCommand(IDType.CAL_WRITE, Offset + x, CalcSize);
+				BtData Cmd = CreateCommand(IDType.CAL_WRITE, Offset + x, CalcSize, Offset);
 
 				for (int i = 0; i < CalcSize; i++) {
 					Cmd.Data[i] = Data[x + i];
@@ -127,7 +131,7 @@ namespace Core3_BLE_Console {
 			ReadMemoryReceived.Clear();
 
 			List<BtData> Cmds = new List<BtData>();
-			Cmds.Add(CreateCommand(IDType.CAL_ERASE, Offset, Size));
+			Cmds.Add(CreateCommand(IDType.CAL_ERASE, Offset, Size, 0));
 			ReadMemoryCount.Add(Cmds[0].Counter);
 			return Cmds.ToArray();
 		}
@@ -149,7 +153,7 @@ namespace Core3_BLE_Console {
 
 		public BtData[] Cmd_VarWatch(uint Var) {
 			List<BtData> Cmds = new List<BtData>();
-			Cmds.Add(CreateCommand(IDType.VAR_WATCH, Var, 1));
+			Cmds.Add(CreateCommand(IDType.VAR_WATCH, Var, 1, 0));
 			return Cmds.ToArray();
 		}
 
@@ -160,7 +164,7 @@ namespace Core3_BLE_Console {
 
 		public BtData[] Cmd_Reboot() {
 			List<BtData> Cmds = new List<BtData>();
-			Cmds.Add(CreateCommand(IDType.VAR_RBOOT, 0, 0));
+			Cmds.Add(CreateCommand(IDType.VAR_RBOOT, 0, 0, 0));
 			return Cmds.ToArray();
 		}
 

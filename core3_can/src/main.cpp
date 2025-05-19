@@ -42,17 +42,19 @@ typedef struct
     char Name[8];
 } watcher_var;
 
-static size_t var_count = 0;
-static watcher_var variables[16];
-
 // ====================================== Variables ======================================
 
-static int64_t emu_tstp[8];
+TimerHandle_t core3_tick_timer;
+
+size_t var_count = 0;
+watcher_var variables[16];
+
+int64_t emu_tstp[8];
 // static emu_data_t emu_data;
 // static vehicle_data veh_data;
 
-static can_message tx_frames[16];
-static int tx_frames_count = 0;
+can_message tx_frames[16];
+int tx_frames_count = 0;
 
 // Basic ==========================================================================================================
 
@@ -212,7 +214,6 @@ void init_gpio_pins()
 
     vTaskDelay(pdMS_TO_TICKS(10));
 
-    dprintf("Calibration scheme version is %s\n", "Line Fitting");
     adc_cali_line_fitting_config_t cali_config = {
         .unit_id = ADC_UNIT_1,
         .atten = ADC_ATTEN_DB_12,
@@ -300,8 +301,7 @@ varType_t core3_var_get(coreVarName_t var, float *out_varf, uint32_t *out_varu, 
     return VARTYPE_FLOAT;
 }
 
-static volatile btDataStruc btResponse;
-static uint8_t can_heartbeat = 0;
+btDataStruc btResponse;
 
 static uint64_t ms = 0;
 static uint64_t var_stream_last = 0;
@@ -336,7 +336,7 @@ uint32_t core3_time_ms()
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
-void core3_tick(TimerHandle_t timer)
+IRAM_ATTR void core3_tick(TimerHandle_t timer)
 {
     ms = esp_timer_get_time() / 1000;
 
@@ -344,6 +344,11 @@ void core3_tick(TimerHandle_t timer)
     //  dprintf("TPS: %d)
 
     // can_channel_turn_on_IPC();
+
+    if (ms >= logic_last + logic_interval)
+    {
+        logic_last = ms;
+    }
 
     if (ms >= logic_ltft_last + logic_ltft_interval)
     {
@@ -411,8 +416,16 @@ void core3_tick(TimerHandle_t timer)
 
 void core3_program(void *arg)
 {
-    core3_flash_init();
-    dprintf("Cal string: %s\n", (const char *)core3_flash_cal_offset(0x0));
+    gpio_set_direction(PIN_5V_EN, GPIO_MODE_OUTPUT);
+    gpio_set_level(PIN_5V_EN, 1);
+
+    gpio_set_direction(SDCARD_PIN_CS, GPIO_MODE_OUTPUT);
+    gpio_set_level(SDCARD_PIN_CS, 1);
+
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    init_gpio_pins();
+    // dprintf("Cal string: %s\n", (const char *)core3_flash_cal_offset(0x0));
 
     core3_bt_init();
 
@@ -426,29 +439,18 @@ void core3_program(void *arg)
     // btResponse = (btDataStruc *)malloc(sizeof(btDataStruc));
     memset((void *)&btResponse, 0, sizeof(btDataStruc));
 
-    TimerHandle_t core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(10), pdTRUE, NULL, core3_tick);
+    core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(10), pdTRUE, NULL, core3_tick);
     xTimerStart(core3_tick_timer, pdMS_TO_TICKS(500));
 
-    while (true)
-    {
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
+    vTaskDelete(NULL);
 }
 
 void app_main()
 {
     dprintf("Starting app!\n");
 
-    gpio_set_direction(PIN_5V_EN, GPIO_MODE_OUTPUT);
-    gpio_set_level(PIN_5V_EN, 1);
-
-    gpio_set_direction(SDCARD_PIN_CS, GPIO_MODE_OUTPUT);
-    gpio_set_level(SDCARD_PIN_CS, 1);
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    init_gpio_pins();
-
     core3_init();
-    xTaskCreate(core3_program, "core3_program", 1024 * 25, NULL, CORE3_PROGRAM_PRIORITY, NULL);
+    core3_flash_init();
+
+    xTaskCreate(core3_program, "core3_program", 1024 * 10, NULL, CORE3_PROGRAM_PRIORITY, NULL);
 }

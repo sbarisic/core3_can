@@ -66,11 +66,13 @@ namespace Core3_BLE_Console.UI {
 
 		bool WindowHovered = false;
 
+		static Vector2 CellSize  = new Vector2(50, 30);
+
 		public override bool HandleInput() {
 			if (base.HandleInput())
 				return true;
 
-			Vector2 CellSize = new Vector2(60, 40);
+			//Vector2 CellSize = new Vector2(50, 35);
 			Vector2 WindowBorderSize = new Vector2(40, 40);
 			Vector2 WindowPos = ElementPosition - WindowBorderSize;
 			Vector2 WindowSize = new Vector2((Width + 1) * CellSize.X, (Height + 1) * CellSize.Y) + (WindowBorderSize * 2);
@@ -114,7 +116,7 @@ namespace Core3_BLE_Console.UI {
 
 			Vector2 Pos = ElementPosition;
 
-			Vector2 CellSize = new Vector2(60, 40);
+			//Vector2 CellSize = new Vector2(60, 40);
 			Vector2 WindowBorderSize = new Vector2(40, 40);
 
 			Color BgColor = Color.White;
