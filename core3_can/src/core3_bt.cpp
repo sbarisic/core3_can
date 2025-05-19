@@ -532,22 +532,22 @@ esp_err_t core3_bt_init()
     err = esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT);
     if (err != ESP_OK)
     {
-        dprintf("[Bluetooth] esp_bt_controller_mem_release FAILED\n");
-        return err;
+        //dprintf("[Bluetooth] esp_bt_controller_mem_release FAILED, %X\n", err);
+        //return err;
     }
 
     esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
     err = esp_bt_controller_init(&bt_cfg);
     if (err != ESP_OK)
     {
-        dprintf("[Bluetooth] esp_bt_controller_init FAILED\n");
+        dprintf("[Bluetooth] esp_bt_controller_init FAILED, 0x%X\n", err);
         return err;
     }
 
     err = esp_bt_controller_enable(ESP_BT_MODE_BLE);
     if (err != ESP_OK)
     {
-        dprintf("[Bluetooth] esp_bt_controller_enable FAILED\n");
+        dprintf("[Bluetooth] esp_bt_controller_enable FAILED, 0x%X\n", err);
         return err;
     }
 
@@ -557,14 +557,14 @@ esp_err_t core3_bt_init()
     err = esp_bluedroid_init_with_cfg(&bluedroid_cfg);
     if (err != ESP_OK)
     {
-        dprintf("[Bluetooth] esp_bluedroid_init_with_cfg FAILED\n");
+        dprintf("[Bluetooth] esp_bluedroid_init_with_cfg FAILED, 0x%X\n", err);
         return err;
     }
 
     err = esp_bluedroid_enable();
     if (err != ESP_OK)
     {
-        dprintf("[Bluetooth] esp_bluedroid_enable FAILED\n");
+        dprintf("[Bluetooth] esp_bluedroid_enable FAILED, 0x%X\n", err);
         return err;
     }
 
@@ -575,7 +575,7 @@ esp_err_t core3_bt_init()
     err = esp_ble_gatt_set_local_mtu(SPP_GATT_MTU_SIZE);
     if (err != ESP_OK)
     {
-        dprintf("[Bluetooth] esp_ble_gatt_set_local_mtu FAILED\n");
+        dprintf("[Bluetooth] esp_ble_gatt_set_local_mtu FAILED, 0x%X\n", err);
         return err;
     }
 

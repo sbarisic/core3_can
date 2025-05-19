@@ -1,6 +1,7 @@
 #include <core3.h>
 #include <ecumaster.h>
 #include <core3_map.h>
+#include <core3_flash.h>
 
 #include <nvs_flash.h>
 #include <esp_log.h>
@@ -66,17 +67,13 @@ void core3_ecu_ltft_tick()
     uint16_t RPM = emu.RPM;
     uint16_t MAP = emu.MAP;
 
-    //emu.LambdaCorrection;
+    // emu.LambdaCorrection;
 }
 
 void core3_ecu_tick()
 {
     if (!emu_available)
         return;
-}
-
-void core3_ecu_init()
-{
 }
 
 uint8_t correction_to_byte(float cor)
@@ -95,20 +92,37 @@ float byte_to_correction(uint8_t byte)
     return (75 + ((125 - 75) * (float)(byte / 255.0f))) / 100.0f;
 }
 
-void core3_init()
-{
-    esp_log_level_set("*", ESP_LOG_NONE);
+static DRAM_ATTR uint8_t flash_mem[940];
 
+void core3_ecu_init()
+{
     MapLTFT = core3_map_create(AxisX_LFTF, sizeof(AxisX_LFTF) / sizeof(*AxisX_LFTF), AxisY_LFTF, sizeof(AxisY_LFTF) / sizeof(*AxisY_LFTF));
     *core3_map_idx_raw(&MapLTFT, 0, 0) = correction_to_byte(0.92);
     *core3_map_idx_raw(&MapLTFT, 0, 1) = correction_to_byte(1.02);
     *core3_map_idx_raw(&MapLTFT, 1, 1) = correction_to_byte(1.03);
     *core3_map_idx_raw(&MapLTFT, 1, 0) = correction_to_byte(0.91);
 
+    size_t map_size = core3_map_sizeof(MapLTFT.x.len, MapLTFT.y.len);
+    dprintf("mem_size = %u\n", map_size);
+
+    memset(flash_mem, 0, map_size);
+    size_t write_len = core3_map_serialize(&MapLTFT, flash_mem);
+
+    dprintf("write_len = %u\n", write_len);
+
+    //core3_flash_cal_erase(0, 0);
+    //core3_flash_cal_write(0x100, flash_mem, map_size);
+    vTaskDelay(pdMS_TO_TICKS(500));
+
     uint8_t map_val = core3_map_index(&MapLTFT, 5, 878, NULL, NULL, NULL, NULL);
     dprintf("MAP_VAL = 0x%02X, %d, %f\n", map_val, (int)map_val, byte_to_correction(map_val));
 
     dprintf("LTFT X = %d, Y = %d\n", MapLTFT.x.len, MapLTFT.y.len);
+}
+
+void core3_init()
+{
+    esp_log_level_set("*", ESP_LOG_NONE);
 
     /* // Initialize NVS
      esp_err_t ret = nvs_flash_init();

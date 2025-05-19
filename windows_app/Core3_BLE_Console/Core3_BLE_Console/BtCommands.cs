@@ -56,7 +56,15 @@ namespace Core3_BLE_Console {
 		}
 
 		public bool Ret_CalReadResp(int Counter, uint Offset, uint Size, byte[] DataArr) {
-			Array.Copy(DataArr, 0, ReadMemoryArray, Offset, Size);
+			int Size2 = (int)Size;
+
+			if (Offset + Size >= 940)
+				Size2 = 940 - (int) Offset;
+
+			if (Size2 < 0)
+				return false;
+
+			Array.Copy(DataArr, 0, ReadMemoryArray, Offset, Size2);
 			ReadMemoryReceived.Add(Counter);
 
 			foreach (var Count in ReadMemoryCount) {

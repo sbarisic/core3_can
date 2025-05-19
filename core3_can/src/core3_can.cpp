@@ -260,7 +260,7 @@ bool core3_can_send(core3_can_msg *msg)
     if (msg == NULL)
         return false;
 
-    core3_can_print(msg);
+    //core3_can_print(msg);
     return true;
 
     /*twai_message_t message;

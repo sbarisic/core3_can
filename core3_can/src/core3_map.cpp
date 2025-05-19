@@ -9,7 +9,7 @@ size_t core3_map_sizeof(int x_len, int y_len)
     size_t y_axis_size = sizeof(core3_map_axis_t);
     y_axis_size += y_len * sizeof(uint16_t);
 
-    size_t map_mem_len = x_len * y_len;
+    size_t map_mem_len = sizeof(uint8_t *) + x_len * y_len;
 
     return x_axis_size + y_axis_size + map_mem_len;
 }
@@ -118,36 +118,58 @@ uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t **outA
     return Mid;
 }
 
-void core3_map_serialize(core3_map_t *map, void *dest_memory)
+size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
 {
     size_t idx = (size_t)dest_memory;
 
     // X Axis
-    *(int *)idx = map->x.len;
-    idx += sizeof(int);
-
-    for (size_t i = 0; i < map->x.len; i++)
     {
-        ((uint16_t *)idx)[i] = map->x.axis[i];
+        *(int *)idx = map->x.len;
+        idx += sizeof(int);
+
+        uint16_t **mem_loc_ptr = ((uint16_t **)idx);
+        idx += sizeof(uint16_t *);
+        *mem_loc_ptr = (uint16_t *)idx;
+
+        for (size_t i = 0; i < map->x.len; i++)
+        {
+            ((uint16_t *)idx)[i] = map->x.axis[i];
+        }
+        idx += map->x.len * sizeof(uint16_t);
     }
-    idx += map->x.len * sizeof(uint16_t);
 
     // Y Axis
-    *(int *)idx = map->y.len;
-    idx += sizeof(int);
-
-    for (size_t i = 0; i < map->y.len; i++)
     {
-        ((uint16_t *)idx)[i] = map->y.axis[i];
+        *(int *)idx = map->y.len;
+        idx += sizeof(int);
+
+        uint16_t **mem_loc_ptr = ((uint16_t **)idx);
+        idx += sizeof(uint16_t *);
+        *mem_loc_ptr = (uint16_t *)idx;
+
+        for (size_t i = 0; i < map->y.len; i++)
+        {
+            ((uint16_t *)idx)[i] = map->y.axis[i];
+        }
+        idx += map->y.len * sizeof(uint16_t);
     }
-    idx += map->y.len * sizeof(uint16_t);
 
     // Memory
-    size_t mem_len = map->x.len * map->y.len;
-    for (size_t i = 0; i < mem_len; i++)
     {
-        ((uint16_t *)idx)[i] = map->map_memory[i];
+        uint8_t **mem_loc_ptr = ((uint8_t **)idx);
+        idx += sizeof(uint8_t *);
+
+        *mem_loc_ptr = (uint8_t *)idx;
+        size_t mem_len = map->x.len * map->y.len;
+
+        for (size_t i = 0; i < mem_len; i++)
+        {
+            ((uint16_t *)idx)[i] = map->map_memory[i];
+        }
+        idx += mem_len;
     }
+
+    return idx - (size_t)dest_memory;
 }
 
 void core3_map_deserialize(void *src_memory, core3_map_t *tgt_map)
@@ -156,16 +178,17 @@ void core3_map_deserialize(void *src_memory, core3_map_t *tgt_map)
 
     int x_len = *(int *)src_memory;
     idx += sizeof(int);
-
+    idx += sizeof(uint16_t *);
     uint16_t *x_axis = (uint16_t *)idx;
     idx += x_len;
 
     int y_len = *(int *)idx;
     idx += sizeof(int);
-
+    idx += sizeof(uint16_t *);
     uint16_t *y_axis = (uint16_t *)idx;
     idx += y_len;
 
+    idx += sizeof(uint8_t *);
     uint8_t *map_memory = (uint8_t *)idx;
 
     tgt_map->x.len = x_len;

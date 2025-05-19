@@ -121,7 +121,7 @@ namespace Core3_BLE_Console {
 
 		static void DownloadCalibration(UITable Tbl) {
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x0, 256, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
+			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x100, 940, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
 
 			foreach (BtData Cmd in CmdArr) {
 				while (!DQ.TryEnqueueSend(Cmd))

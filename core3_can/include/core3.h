@@ -83,15 +83,6 @@ extern "C"
         VAR_DIG3 = 11
     } coreVarName_t;
 
-    typedef struct PACKED_ATTR
-    {
-        uint8_t value;
-        float raw_value;
-
-        float trigger_value;
-        float hyst;
-    } core3_io_digital;
-
     void app_main();
     void core3_init();
     size_t core3_round_up(size_t numToRound, size_t multiple);

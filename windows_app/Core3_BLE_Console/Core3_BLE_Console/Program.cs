@@ -13,6 +13,8 @@ namespace Core3_BLE_Console {
 			WinWidth = 1680;
 			WinHeight = 900;
 
+			Bluetooth.DoBluetooth();
+
 			Raylib.InitWindow(WinWidth, WinHeight, "Core3");
 			Raylib.SetExitKey(KeyboardKey.Null);
 			//Raylib.SetWindowState(ConfigFlags.Msaa4xHint);
@@ -20,7 +22,6 @@ namespace Core3_BLE_Console {
 			Raylib.SetWindowState(ConfigFlags.VSyncHint);
 			//Raylib.SetTargetFPS(240);
 
-			Bluetooth.DoBluetooth();
 			Graphics.Init();
 
 

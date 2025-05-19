@@ -42,7 +42,7 @@ bool core3_flash_cal_write(size_t offset, const void *src, size_t size)
 {
     dprintf("core3_flash_cal_write(%u, %u)\n", offset, size);
 
-    esp_err_t err = esp_partition_write(cal_part, offset, src, size);
+    esp_err_t err = esp_partition_write_raw(cal_part, offset, src, size);
 
     if (err != ESP_OK)
     {

@@ -331,7 +331,7 @@ void core3_var_watch_set(bool enabled)
     var_watch_enabled = enabled;
 }
 
-void core3_io_digital_calc(core3_io_digital *dig)
+/*void core3_io_digital_calc(core3_io_digital *dig)
 {
     if (dig->trigger_value == 0)
         return;
@@ -346,7 +346,7 @@ void core3_io_digital_calc(core3_io_digital *dig)
         if (dig->raw_value < dig->trigger_value - dig->hyst)
             dig->value = 0x0;
     }
-}
+}*/
 
 uint32_t core3_time_ms()
 {
@@ -425,15 +425,14 @@ void core3_tick(TimerHandle_t timer)
 
 void core3_program(void *arg)
 {
-    core3_flash_init();
-
+    core3_flash_init();    
     dprintf("Cal string: %s\n", (const char *)core3_flash_cal_offset(0x0));
-
+    
     core3_bt_init();
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
-
-    core3_ecu_init();
+    
+    //core3_ecu_init();
 
     dprintf("Done!\n");
 
@@ -445,7 +444,7 @@ void core3_program(void *arg)
 
     while (true)
     {
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
