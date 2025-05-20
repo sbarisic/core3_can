@@ -174,11 +174,20 @@ namespace Core3_BLE_Console {
 
 					byte[] Mem1 = new byte[Mem.Length];
 					byte[] Mem2 = new byte[Mem.Length];
-					
+
 					for (int i = 0; i < Mem.Length; i++) {
 						Mem1[i] = Mem[i];
 						Mem2[i] = Mem[i];
 					}
+
+					TestTable.ByteToInput = (B) => {
+						return MathF.Round(UITable.byte_to_correction(B), 2).ToString();
+					};
+
+					TestTable.InputToByte = (In) => {
+						float F = float.Parse(In, System.Globalization.CultureInfo.InvariantCulture);
+						return UITable.correction_to_byte(F);
+					};
 
 					TestTable.DataBackup = Mem1;
 					TestTable.DataMem = Mem2;

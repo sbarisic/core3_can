@@ -60,6 +60,7 @@
 #define CORE3_PROGRAM_PRIORITY 3
 #define CORE3_CAN_SEND_PRIORITY 4
 #define CORE3_CAN_RECEIVE_PRIORITY 5
+#define CORE3_ECU_UPDATE_PRIORITY 6
 
 #if defined(__cplusplus)
 extern "C"
@@ -77,6 +78,9 @@ extern "C"
         VAR_ANALOG1 = 2,
         VAR_ANALOG2 = 3,
         VAR_ANALOG3 = 4,
+        VAR_RPM = 5,
+        VAR_MAP = 6,
+        VAR_LTFT = 7,
         VAR_DIG0 = 8,
         VAR_DIG1 = 9,
         VAR_DIG2 = 10,
@@ -97,11 +101,19 @@ extern "C"
 
     // core3.cpp
 
+    float byte_to_correction(uint8_t byte);
+    uint8_t correction_to_byte(float cor);
+
+    uint16_t core3_ecu_getMAP();
+    uint16_t core3_ecu_getRPM();
+    uint8_t core3_long_term_fuel_trim();
+
     void core3_ecu_tick();
-    void core3_ecu_ltft_tick();
     bool core3_emu_available();
     uint8_t core3_octane_factor_get();
     uint8_t core3_long_term_fuel_trim();
+
+    bool core3_ecu_ltft_serialize(void (*Callback)(void *User1, uint8_t *mem, size_t size), void *User1);
 
 #if defined(__cplusplus)
 }

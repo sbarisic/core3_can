@@ -310,15 +310,6 @@ static uint64_t var_stream_interval = 40;
 static uint64_t can_stream_last = 0;
 static uint64_t can_stream_interval = 60;
 
-static uint64_t io_poll_last = 0;
-static uint64_t io_poll_interval = 80;
-
-static uint64_t logic_last = 0;
-static uint64_t logic_interval = 10;
-
-static uint64_t logic_ltft_last = 0;
-static uint64_t logic_ltft_interval = 500;
-
 static bool var_watch_enabled = false;
 
 bool core3_var_watch_is_enabled()
@@ -344,35 +335,6 @@ IRAM_ATTR void core3_tick(TimerHandle_t timer)
     //  dprintf("TPS: %d)
 
     // can_channel_turn_on_IPC();
-
-    if (ms >= logic_last + logic_interval)
-    {
-        logic_last = ms;
-    }
-
-    if (ms >= logic_ltft_last + logic_ltft_interval)
-    {
-        logic_ltft_last = ms;
-        core3_ecu_ltft_tick();
-    }
-
-    if (ms >= io_poll_last + io_poll_interval)
-    {
-        io_poll_last = ms;
-
-        float time = ms / 1000.0f;
-        float v0, v1, v2, v3;
-
-        core3_analog(GPIOA0_CH, &v0);
-        core3_analog(GPIOA1_CH, &v1);
-        core3_analog(GPIOA2_CH, &v2);
-        core3_analog(GPIOA3_CH, &v3);
-
-        core3_var_set("Analog0 ", VAR_ANALOG0, VARTYPE_FLOAT, v0, 0, time);
-        core3_var_set("Analog1 ", VAR_ANALOG1, VARTYPE_FLOAT, v1, 0, time);
-        core3_var_set("Analog2 ", VAR_ANALOG2, VARTYPE_FLOAT, v2, 0, time);
-        core3_var_set("Analog3 ", VAR_ANALOG3, VARTYPE_FLOAT, v3, 0, time);
-    }
 
     if (ms >= var_stream_last + var_stream_interval)
     {
@@ -414,6 +376,31 @@ IRAM_ATTR void core3_tick(TimerHandle_t timer)
     }
 }
 
+void update_variables_task(void *arg)
+{
+    while (true)
+    {
+        float time = ms / 1000.0f;
+        float v0, v1, v2, v3;
+
+        core3_analog(GPIOA0_CH, &v0);
+        core3_analog(GPIOA1_CH, &v1);
+        core3_analog(GPIOA2_CH, &v2);
+        core3_analog(GPIOA3_CH, &v3);
+
+        core3_var_set("Analog0 ", VAR_ANALOG0, VARTYPE_FLOAT, v0, 0, time);
+        core3_var_set("Analog1 ", VAR_ANALOG1, VARTYPE_FLOAT, v1, 0, time);
+        core3_var_set("Analog2 ", VAR_ANALOG2, VARTYPE_FLOAT, v2, 0, time);
+        core3_var_set("Analog3 ", VAR_ANALOG3, VARTYPE_FLOAT, v3, 0, time);
+
+        core3_var_set("RPM     ", VAR_RPM, VARTYPE_FLOAT, (float)core3_ecu_getRPM(), 0, time);
+        core3_var_set("MAP     ", VAR_MAP, VARTYPE_FLOAT, (float)core3_ecu_getMAP(), 0, time);
+        core3_var_set("LTFT    ", VAR_LTFT, VARTYPE_FLOAT, byte_to_correction(core3_long_term_fuel_trim()), 0, time);
+
+        vTaskDelay(pdMS_TO_TICKS(80));
+    }
+}
+
 void core3_program(void *arg)
 {
     gpio_set_direction(PIN_5V_EN, GPIO_MODE_OUTPUT);
@@ -429,6 +416,11 @@ void core3_program(void *arg)
 
     core3_bt_init();
 
+    while (!core3_bt_is_advertising())
+    {
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+
     core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
     setup_can_channels();
 
@@ -442,6 +434,7 @@ void core3_program(void *arg)
     core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(10), pdTRUE, NULL, core3_tick);
     xTimerStart(core3_tick_timer, pdMS_TO_TICKS(500));
 
+    xTaskCreate(update_variables_task, "update_variables_task", 1024 * 10, NULL, CORE3_PROGRAM_PRIORITY, NULL);
     vTaskDelete(NULL);
 }
 
@@ -452,5 +445,5 @@ void app_main()
     core3_init();
     core3_flash_init();
 
-    xTaskCreate(core3_program, "core3_program", 1024 * 10, NULL, CORE3_PROGRAM_PRIORITY, NULL);
+    xTaskCreate(core3_program, "core3_program", 1024 * 20, NULL, CORE3_PROGRAM_PRIORITY, NULL);
 }

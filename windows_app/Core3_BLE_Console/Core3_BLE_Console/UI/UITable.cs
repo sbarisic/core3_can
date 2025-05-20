@@ -14,6 +14,9 @@ using static System.Net.Mime.MediaTypeNames;
 using Font = Raylib_cs.Font;
 
 namespace Core3_BLE_Console.UI {
+	delegate byte InputToByteFunc(string Input);
+	delegate string ByteToInputFunc(byte B);
+
 	class UITable : UIElement {
 		bool IsTableDragging = false;
 		Vector2 StartDragMousePos;
@@ -35,6 +38,9 @@ namespace Core3_BLE_Console.UI {
 		public GetTableLabelFunc GetTableLabel;
 		public GetTableColorFunc GetTableColor;
 
+		public InputToByteFunc InputToByte;
+		public ByteToInputFunc ByteToInput;
+
 		public UITable(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
 			ElementPosition = new Vector2(130, 150);
 		}
@@ -48,8 +54,18 @@ namespace Core3_BLE_Console.UI {
 			return "-";
 		}
 
-		float byte_to_correction(byte b) {
+		public static float byte_to_correction(byte b) {
 			return (75 + ((125 - 75) * (float)(b / 255.0f))) / 100.0f;
+		}
+
+		public static byte correction_to_byte(float cor) {
+			if (cor < 0.75)
+				return 0;
+
+			if (cor > 1.25)
+				return 255;
+
+			return (byte)((cor - 0.75) / (1.25 - 0.75) * 255);
 		}
 
 		string GetTableLabel_Char(int XX, int YY) {
@@ -70,6 +86,15 @@ namespace Core3_BLE_Console.UI {
 			return "-";
 		}
 
+		string GetTableLabel_FromDelegate(int X, int Y) {
+			int Idx = DataOffset + Y * Width + X;
+
+			if (Idx >= 0 && Idx < DataMem.Length) {
+				return ByteToInput(DataMem[Idx]);
+			}
+
+			return "-";
+		}
 
 		Color GetTableColor_White(int X, int Y) {
 			return Color.White;
@@ -130,7 +155,7 @@ namespace Core3_BLE_Console.UI {
 				return;
 
 			if (GetTableLabel == null)
-				GetTableLabel = GetTableLabel_LTFT; //GetTableLabel_Hex;
+				GetTableLabel = GetTableLabel_FromDelegate; //GetTableLabel_Hex;
 
 			if (GetTableColor == null)
 				GetTableColor = GetTableColor_LTFT;
@@ -177,13 +202,13 @@ namespace Core3_BLE_Console.UI {
 			ElementPosition = Pos;
 		}
 
-		void WriteData(int Offset, byte Val) {
+		void WriteData(int Offset, string In) {
 			Offset += DataOffset;
 
 			if (Offset < 0 || Offset >= DataMem.Length)
 				return;
 
-			DataMem[Offset] = Val;
+			DataMem[Offset] = InputToByte(In);
 		}
 
 		byte ReadData(int Offset) {
@@ -235,7 +260,11 @@ namespace Core3_BLE_Console.UI {
 				else
 					OutlineColor = Color.Black;
 
-				if (Raylib.IsKeyPressed(KeyboardKey.Delete)) {
+				if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.C)) {
+					Console.WriteLine("Copy {0}", Txt);
+				} else if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.V)) {
+					Console.WriteLine("Paste {0}", Txt);
+				} else if (Raylib.IsKeyPressed(KeyboardKey.Delete)) {
 					bool CtrlDown = Raylib.IsKeyDown(KeyboardKey.LeftControl);
 
 					if (EditedCellIdx >= 0 && EditedCellRange >= 0) {
@@ -257,7 +286,7 @@ namespace Core3_BLE_Console.UI {
 						UInput.BeginInput(
 							Pos + Size / 2,
 							8,
-							"0x" + Txt,
+							Txt,
 							(Key) => {
 								if (Key == KeyboardKey.Enter || Key == KeyboardKey.KpEnter)
 									return true;
@@ -267,12 +296,7 @@ namespace Core3_BLE_Console.UI {
 								//Console.WriteLine(Str);
 
 								try {
-									if (Str.StartsWith("0x")) {
-										byte B = Convert.FromHexString(Str.Substring(2)).Last();
-										WriteData(CellIdx, B);
-									} else {
-										WriteData(CellIdx, Encoding.ASCII.GetBytes(Str).Last());
-									}
+									WriteData(CellIdx, Str);
 								} catch (Exception) {
 								}
 							});
@@ -316,7 +340,7 @@ namespace Core3_BLE_Console.UI {
 								byte[] StrBytes = Encoding.ASCII.GetBytes(Str);
 
 								for (int i = 0; i < StrBytes.Length; i++) {
-									WriteData(CellIdx + i, StrBytes[i]);
+									//WriteData(CellIdx + i, StrBytes[i]);
 								}
 							});
 					}
@@ -362,11 +386,11 @@ namespace Core3_BLE_Console.UI {
 								}, (Str) => {
 									//Console.WriteLine(Str);
 
-									byte[] StrBytes = Encoding.ASCII.GetBytes(Str);
+									//byte[] StrBytes = Encoding.ASCII.GetBytes(Str);
 
-									for (int i = 0; i < StrBytes.Length; i++) {
-										WriteData(EditedCellIdx + i, StrBytes[i]);
-									}
+									//for (int i = 0; i < StrBytes.Length; i++) {
+									//	WriteData(EditedCellIdx + i, Str);
+									//}
 								});
 						}
 					}

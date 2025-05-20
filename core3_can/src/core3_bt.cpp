@@ -76,6 +76,7 @@ static volatile esp_gatt_if_t spp_gatts_if = 0xff;
 
 static volatile bool enable_data_ntf = false;
 static volatile bool is_connected = false;
+static volatile bool is_advertising = false;
 static esp_bd_addr_t spp_remote_bda = {
     0x0,
 };
@@ -245,6 +246,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
     {
     case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT:
         esp_ble_gap_start_advertising(&spp_adv_params);
+        is_advertising = true;
         break;
     case ESP_GAP_BLE_ADV_START_COMPLETE_EVT:
         // advertising start complete event to indicate advertising start successfully or failed
@@ -328,8 +330,11 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.Data2 = btData.Data2;
                 btResponse.Data3 = btData.Data3;
 
-                const void *flash_mem = core3_flash_cal_offset(btData.Data1);
-                memcpy(&btResponse.Data, flash_mem, btData.Data2);
+                //if (!core3_ecu_ltft_serialize(send_mem, &btResponse))
+                //{
+                    const void *flash_mem = core3_flash_cal_offset(btData.Data1);
+                    memcpy(&btResponse.Data, flash_mem, btData.Data2);
+                //}
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
             }
@@ -414,6 +419,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         spp_gatts_if = gatts_if;
         memcpy(&spp_remote_bda, &p_data->connect.remote_bda, sizeof(esp_bd_addr_t));
         is_connected = true;
+        is_advertising = false;
         break;
 
     case ESP_GATTS_DISCONNECT_EVT:
@@ -425,6 +431,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         enable_data_ntf = false;
 
         esp_ble_gap_start_advertising(&spp_adv_params);
+        is_advertising = true;
         break;
 
     case ESP_GATTS_OPEN_EVT:
@@ -526,6 +533,11 @@ bool core3_bt_send_data_len(uint8_t *dat, int len)
 bool core3_bt_is_connected()
 {
     return is_connected;
+}
+
+bool core3_bt_is_advertising()
+{
+    return is_advertising;
 }
 
 esp_err_t core3_bt_init()

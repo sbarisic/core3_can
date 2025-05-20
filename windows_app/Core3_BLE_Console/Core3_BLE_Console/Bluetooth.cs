@@ -78,15 +78,24 @@ namespace Core3_BLE_Console {
 
 			GattSession BLE_Session = GattSession.FromDeviceIdAsync(BLE_DevID).GetAwaiter().GetResult();
 			BLE_Session.MaintainConnection = true;
-			Thread.Sleep(10);
-
 			BLE_Device.ConnectionStatusChanged += BLE_Device_ConnectionStatusChanged;
+			Thread.Sleep(200);
+
 
 			IService[] Services = Core3Device.GetServicesAsync().GetAwaiter().GetResult().ToArray();
-			Thread.Sleep(10);
+			Thread.Sleep(200);
 
-			ICharacteristic[] Characteristics = Services[2].GetCharacteristicsAsync().GetAwaiter().GetResult().ToArray();
-			Thread.Sleep(10);
+			ICharacteristic[] Characteristics = null;
+			for (int i = 0; i < 5; i++) {
+				try {
+					Characteristics = Services[2].GetCharacteristicsAsync().GetAwaiter().GetResult().ToArray();
+					break;
+				} catch (Exception) {
+				}
+				Thread.Sleep(200);
+			}
+
+			Thread.Sleep(200);
 
 			Characteristics[1].ValueUpdated += Program_ValueUpdated;
 			Characteristics[1].StartUpdatesAsync().GetAwaiter().GetResult();
