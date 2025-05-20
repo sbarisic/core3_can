@@ -65,8 +65,10 @@ namespace Core3_BLE_Console {
 			if (Size2 < 0)
 				return false;*/
 
+			Offset = Offset - Offset2;
+
 			if (Offset < ReadMemoryArray.Length) {
-				Array.Copy(DataArr, 0, ReadMemoryArray, Offset - Offset2, Size2);
+				Array.Copy(DataArr, 0, ReadMemoryArray, Offset, Size2);
 			}
 
 			ReadMemoryReceived.Add(Counter);

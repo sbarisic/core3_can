@@ -104,7 +104,7 @@ void core3_ecu_init()
     {
         for (size_t x = 0; x < MapLTFT->x.len; x++)
         {
-            core3_map_set_raw(MapLTFT, x,y, correction_to_byte(1.0f));
+            core3_map_set_raw(MapLTFT, x,y, correction_to_byte(0.84f));
         }
     }
 

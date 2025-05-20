@@ -131,7 +131,7 @@ namespace Core3_BLE_Console {
 		static void EraseCalibration(UITable Tbl) {
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
 
-			BtData[] CmdArr = DQ.Commands.Cmd_CalErase(0x0, (uint)Tbl.Data.Length).ToArray();
+			BtData[] CmdArr = DQ.Commands.Cmd_CalErase(0x0, (uint)Tbl.DataMem.Length).ToArray();
 
 			foreach (BtData Cmd in CmdArr) {
 				while (!DQ.TryEnqueueSend(Cmd))
@@ -141,7 +141,7 @@ namespace Core3_BLE_Console {
 
 		static void UploadCalibration(UITable Tbl) {
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-			BtData[] CmdArr = DQ.Commands.Cmd_CalWrite(0x0, (uint)Tbl.Data.Length, Tbl.Data).ToArray();
+			BtData[] CmdArr = DQ.Commands.Cmd_CalWrite(0x100, (uint)Tbl.DataMem.Length, Tbl.DataMem).ToArray();
 
 			foreach (BtData Cmd in CmdArr) {
 				while (!DQ.TryEnqueueSend(Cmd))
@@ -152,45 +152,47 @@ namespace Core3_BLE_Console {
 		static void OnMemReceived(UITable TestTable, byte[] Mem) {
 			Console.WriteLine("Mem: {0}", Mem.Length);
 
-			MemoryStream MS = new MemoryStream(Mem);
-			MS.Seek(0, SeekOrigin.Begin);
-			BinaryReader BR = new BinaryReader(MS);
+			using (MemoryStream MS = new MemoryStream(Mem)) {
+				MS.Seek(0, SeekOrigin.Begin);
 
+				using (BinaryReader BR = new BinaryReader(MS)) {
+					int XLen = BR.ReadInt32();
+					ushort[] XAxis = new ushort[XLen];
 
+					for (int i = 0; i < XAxis.Length; i++) {
+						XAxis[i] = BR.ReadUInt16();
+					}
 
-			int XLen = BR.ReadInt32();
-			ushort[] XAxis = new ushort[XLen];
+					int YLen = BR.ReadInt32();
+					ushort[] YAxis = new ushort[YLen];
 
-			for (int i = 0; i < XAxis.Length; i++) {
-				XAxis[i] = BR.ReadUInt16();
+					for (int i = 0; i < YAxis.Length; i++) {
+						YAxis[i] = BR.ReadUInt16();
+					}
+
+					TestTable.DataOffset = (int)BR.BaseStream.Position;
+
+					byte[] Mem1 = new byte[Mem.Length];
+					byte[] Mem2 = new byte[Mem.Length];
+					
+					for (int i = 0; i < Mem.Length; i++) {
+						Mem1[i] = Mem[i];
+						Mem2[i] = Mem[i];
+					}
+
+					TestTable.DataBackup = Mem1;
+					TestTable.DataMem = Mem2;
+					TestTable.FlipY = false;
+					TestTable.Width = XLen;
+					TestTable.Height = YLen;
+					TestTable.TableDesc = "LTFT Cor.";
+					TestTable.XDesc = "MAP";
+					TestTable.YDesc = "RPM";
+					TestTable.XLabels = XAxis.Select(X => X.ToString()).ToArray();
+					TestTable.YLabels = YAxis.Select(Y => Y.ToString()).ToArray();
+
+				}
 			}
-
-			int YLen = BR.ReadInt32();
-			ushort[] YAxis = new ushort[YLen];
-
-			for (int i = 0; i < YAxis.Length; i++) {
-				YAxis[i] = BR.ReadUInt16();
-			}
-
-			byte[] Map = new byte[XLen * YLen];
-			byte[] Map2 = new byte[Map.Length];
-
-			for (int i = 0; i < Map.Length; i++) {
-				Map[i] = BR.ReadByte();
-				Map2[i] = Map[i];
-			}
-
-
-			TestTable.DataBackup = Map;
-			TestTable.Data = Map2;
-			TestTable.FlipY = false;
-			TestTable.Width = XLen;
-			TestTable.Height = YLen;
-			TestTable.TableDesc = "Hex View";
-			TestTable.XDesc = "X";
-			TestTable.YDesc = "Y";
-			TestTable.XLabels = XAxis.Select(X => X.ToString()).ToArray();
-			TestTable.YLabels = YAxis.Select(Y => Y.ToString()).ToArray();
 
 			/*string[] XLabels = new string[16];
 

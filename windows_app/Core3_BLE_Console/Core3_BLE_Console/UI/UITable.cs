@@ -21,7 +21,8 @@ namespace Core3_BLE_Console.UI {
 
 
 		public byte[] DataBackup;
-		public byte[] Data;
+		public byte[] DataMem;
+		public int DataOffset;
 
 		public bool FlipY;
 		public int Width;
@@ -39,34 +40,54 @@ namespace Core3_BLE_Console.UI {
 		}
 
 		string GetTableLabel_Hex(int XX, int YY) {
-			int Idx = YY * 16 + XX;
+			int Idx = DataOffset + YY * Width + XX;
 
-			if (Idx >= 0 && Idx < Data.Length)
-				return Data[Idx].ToString("X2");
+			if (Idx >= 0 && Idx < DataMem.Length)
+				return DataMem[Idx].ToString("X2");
 
 			return "-";
+		}
+
+		float byte_to_correction(byte b) {
+			return (75 + ((125 - 75) * (float)(b / 255.0f))) / 100.0f;
 		}
 
 		string GetTableLabel_Char(int XX, int YY) {
-			int Idx = YY * 16 + XX;
+			int Idx = DataOffset + YY * Width + XX;
 
-			if (Idx >= 0 && Idx < Data.Length)
-				return ((char)Data[Idx]).ToString();
+			if (Idx >= 0 && Idx < DataMem.Length)
+				return ((char)DataMem[Idx]).ToString();
 
 			return "-";
 		}
+
+		string GetTableLabel_LTFT(int XX, int YY) {
+			int Idx = DataOffset + YY * Width + XX;
+
+			if (Idx >= 0 && Idx < DataMem.Length)
+				return MathF.Round(byte_to_correction(DataMem[Idx]), 2).ToString();
+
+			return "-";
+		}
+
 
 		Color GetTableColor_White(int X, int Y) {
 			return Color.White;
 		}
 
+		Color GetTableColor_LTFT(int X, int Y) {
+			byte val = DataMem[Y * Width + X + DataOffset];
+
+			return Utils.LerpColor(Color.SkyBlue, Color.White, Color.Orange, 0.75f, 1.25f, byte_to_correction(val));
+		}
+
 		public void SetHexData(byte[] Data) {
-			this.Data = Data;
+			this.DataMem = Data;
 		}
 
 		bool WindowHovered = false;
 
-		static Vector2 CellSize  = new Vector2(50, 30);
+		static Vector2 CellSize = new Vector2(50, 30);
 
 		public override bool HandleInput() {
 			if (base.HandleInput())
@@ -105,14 +126,14 @@ namespace Core3_BLE_Console.UI {
 		}
 
 		public override void Draw() {
-			if (Data == null)
+			if (DataMem == null)
 				return;
 
 			if (GetTableLabel == null)
-				GetTableLabel = GetTableLabel_Hex;
+				GetTableLabel = GetTableLabel_LTFT; //GetTableLabel_Hex;
 
 			if (GetTableColor == null)
-				GetTableColor = GetTableColor_White;
+				GetTableColor = GetTableColor_LTFT;
 
 			Vector2 Pos = ElementPosition;
 
@@ -157,18 +178,21 @@ namespace Core3_BLE_Console.UI {
 		}
 
 		void WriteData(int Offset, byte Val) {
+			Offset += DataOffset;
 
-			if (Offset < 0 || Offset >= Data.Length)
+			if (Offset < 0 || Offset >= DataMem.Length)
 				return;
 
-			Data[Offset] = Val;
+			DataMem[Offset] = Val;
 		}
 
 		byte ReadData(int Offset) {
-			if (Offset < 0 || Offset >= Data.Length)
+			Offset += DataOffset;
+
+			if (Offset < 0 || Offset >= DataMem.Length)
 				return 0;
 
-			return Data[Offset];
+			return DataMem[Offset];
 		}
 
 		int EditedCellIdx = 0;
@@ -182,8 +206,8 @@ namespace Core3_BLE_Console.UI {
 
 			bool IsCellDirty = false;
 
-			if (CellIdx >= 0 && CellIdx < Data.Length) {
-				if (Data[CellIdx] != DataBackup[CellIdx]) {
+			if (CellIdx + DataOffset >= 0 && CellIdx + DataOffset < DataMem.Length) {
+				if (DataMem[CellIdx + DataOffset] != DataBackup[CellIdx + DataOffset]) {
 					IsCellDirty = true;
 				}
 			}
@@ -221,7 +245,7 @@ namespace Core3_BLE_Console.UI {
 							if (CtrlDown)
 								DstByte = DataBackup[EditedCellIdx + i];
 
-							Data[EditedCellIdx + i] = DstByte;
+							DataMem[EditedCellIdx + i + DataOffset] = DstByte;
 						}
 					}
 
