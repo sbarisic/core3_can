@@ -19,7 +19,7 @@ using static System.Net.Mime.MediaTypeNames;
 using Font = Raylib_cs.Font;
 
 namespace Core3_BLE_Console {
-	delegate string GetTableLabelFunc(int X, int Y);
+	delegate UITableLabel GetTableLabelFunc(int X, int Y);
 	delegate Color GetTableColorFunc(int X, int Y);
 
 	internal static class Graphics {
@@ -30,6 +30,8 @@ namespace Core3_BLE_Console {
 		static UserInput UInput;
 		static List<UIElement> UIElements = new List<UIElement>();
 
+		static UITable Table_LTFT;
+
 		public static void AddUIElement(UIElement El) {
 			UIElements.Add(El);
 		}
@@ -39,12 +41,31 @@ namespace Core3_BLE_Console {
 			DrawFont = Raylib.LoadFontEx("data/fonts/mmrtext.ttf", FontSize, null, 250);
 			//DrawFont = Raylib.LoadFontEx("data/fonts/Enwallowify_Medium.ttf", FontSize, null, 250);
 
+			Thread TestThread = new Thread(() => {
+				while (!Bluetooth.IsConnected())
+					Thread.Sleep(100);
+
+				BtDataQueue DQ = Bluetooth.GetDataQueue();
+
+				BtData[] CmdArr = DQ.Commands.Cmd_Hello().ToArray();
+				foreach (BtData Cmd in CmdArr) {
+					while (!DQ.TryEnqueueSend(Cmd))
+						Thread.Sleep(10);
+				}
+
+				DQ.FlushSendQueue();
+			});
+
+			TestThread.IsBackground = true;
+			TestThread.Start();
+
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
 
 			UInput = new UserInput(DrawFont, FontSpacing, FontSize);
-
-			UITable TestTable = new UITable(DrawFont, FontSpacing, FontSize, UInput);
-			AddUIElement(TestTable);
+			Table_LTFT = new UITable(DrawFont, FontSpacing, FontSize, UInput);
+			Table_LTFT.XAxisValue = DQ.GetVariable("-", ECUVariable.VAR_MAP);
+			Table_LTFT.YAxisValue = DQ.GetVariable("-", ECUVariable.VAR_RPM);
+			AddUIElement(Table_LTFT);
 
 			/*UIGraph TestGraph0 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
 			TestGraph0.Variable = DQ.GetVariable("An0", 0x1);
@@ -72,9 +93,9 @@ namespace Core3_BLE_Console {
 			AddUIElement(TestGraph3);*/
 
 			UIToolbar Toolbar = new UIToolbar(DrawFont, FontSpacing, FontSize, UInput);
-			Toolbar.AddButton("Download Cal", () => { DownloadCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
-			Toolbar.AddButton("Erase Cal", () => { EraseCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
-			Toolbar.AddButton("Upload Cal", () => { UploadCalibration(TestTable); }, (Btn) => !Bluetooth.IsConnected());
+			Toolbar.AddButton("Download Cal", () => { DownloadCalibration(); }, (Btn) => !Bluetooth.IsConnected());
+			Toolbar.AddButton("Erase Cal", () => { EraseCalibration(); }, (Btn) => !Bluetooth.IsConnected());
+			Toolbar.AddButton("Upload Cal", () => { UploadCalibration(); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Realtime", () => { RealtimeData(); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Reboot", () => { RebootECU(); }, (Btn) => !Bluetooth.IsConnected());
 			AddUIElement(Toolbar);
@@ -107,19 +128,25 @@ namespace Core3_BLE_Console {
 				while (!DQ.TryEnqueueSend(Cmd))
 					Thread.Sleep(10);
 			}
+
+			DQ.FlushSendQueue();
 		}
 
-		static void RealtimeData() {
+		static void RealtimeData(uint SetMode = 2) {
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-			BtData[] CmdArr = DQ.Commands.Cmd_VarWatch(0x0).ToArray();
+			BtData[] CmdArr = DQ.Commands.Cmd_VarWatch(SetMode).ToArray();
 
 			foreach (BtData Cmd in CmdArr) {
 				while (!DQ.TryEnqueueSend(Cmd))
 					Thread.Sleep(10);
 			}
+
+			DQ.FlushSendQueue();
 		}
 
 		static void DownloadCalibration(UITable Tbl) {
+			RealtimeData(0);
+
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
 			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x100, 960, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
 
@@ -127,19 +154,12 @@ namespace Core3_BLE_Console {
 				while (!DQ.TryEnqueueSend(Cmd))
 					Thread.Sleep(50);
 			}
-		}
-		static void EraseCalibration(UITable Tbl) {
-			BtDataQueue DQ = Bluetooth.GetDataQueue();
-
-			BtData[] CmdArr = DQ.Commands.Cmd_CalErase(0x0, (uint)Tbl.DataMem.Length).ToArray();
-
-			foreach (BtData Cmd in CmdArr) {
-				while (!DQ.TryEnqueueSend(Cmd))
-					Thread.Sleep(10);
-			}
+			DQ.FlushSendQueue();
 		}
 
 		static void UploadCalibration(UITable Tbl) {
+			RealtimeData(0);
+
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
 			BtData[] CmdArr = DQ.Commands.Cmd_CalWrite(0x100, (uint)Tbl.DataMem.Length, Tbl.DataMem).ToArray();
 
@@ -147,6 +167,28 @@ namespace Core3_BLE_Console {
 				while (!DQ.TryEnqueueSend(Cmd))
 					Thread.Sleep(10);
 			}
+
+			DQ.FlushSendQueue();
+		}
+
+		static void EraseCalibration() {
+			BtDataQueue DQ = Bluetooth.GetDataQueue();
+
+			BtData[] CmdArr = DQ.Commands.Cmd_CalErase(0x0, 0x0).ToArray();
+			foreach (BtData Cmd in CmdArr) {
+				while (!DQ.TryEnqueueSend(Cmd))
+					Thread.Sleep(10);
+			}
+
+			DQ.FlushSendQueue();
+		}
+
+		static void UploadCalibration() {
+			UploadCalibration(Table_LTFT);
+		}
+
+		static void DownloadCalibration() {
+			DownloadCalibration(Table_LTFT);
 		}
 
 		static void OnMemReceived(UITable TestTable, byte[] Mem) {
@@ -181,7 +223,8 @@ namespace Core3_BLE_Console {
 					}
 
 					TestTable.ByteToInput = (B) => {
-						return MathF.Round(UITable.byte_to_correction(B), 2).ToString();
+						float Val = MathF.Round(UITable.byte_to_correction(B), 2);
+						return new UITableLabel(Val.ToString(), Val);
 					};
 
 					TestTable.InputToByte = (In) => {
@@ -197,8 +240,8 @@ namespace Core3_BLE_Console {
 					TestTable.TableDesc = "LTFT Cor.";
 					TestTable.XDesc = "MAP";
 					TestTable.YDesc = "RPM";
-					TestTable.XLabels = XAxis.Select(X => X.ToString()).ToArray();
-					TestTable.YLabels = YAxis.Select(Y => Y.ToString()).ToArray();
+					TestTable.XLabels = XAxis.Select(X => new UITableLabel(X.ToString(), X)).ToArray();
+					TestTable.YLabels = YAxis.Select(Y => new UITableLabel(Y.ToString(), Y)).ToArray();
 
 				}
 			}

@@ -209,8 +209,8 @@ void canUpdate_ecuOutput(core3_can_msg *msg)
 {
     msg->data_length_code = 8;
 
-    msg->data[0] = core3_octane_factor_get();
-    msg->data[1] = core3_long_term_fuel_trim();
+    msg->data[0] = core3_ecu_octane_factor();
+    msg->data[1] = core3_ecu_long_term_fuel_trim();
     msg->data[2] = 0;
     msg->data[3] = 0;
 

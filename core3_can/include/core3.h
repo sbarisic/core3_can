@@ -61,6 +61,7 @@
 #define CORE3_CAN_SEND_PRIORITY 4
 #define CORE3_CAN_RECEIVE_PRIORITY 5
 #define CORE3_ECU_UPDATE_PRIORITY 6
+#define CORE3_VAR_STREAM_PRIORITY 7
 
 #if defined(__cplusplus)
 extern "C"
@@ -75,16 +76,24 @@ extern "C"
     typedef enum
     {
         VAR_ANALOG0 = 1,
-        VAR_ANALOG1 = 2,
-        VAR_ANALOG2 = 3,
-        VAR_ANALOG3 = 4,
-        VAR_RPM = 5,
-        VAR_MAP = 6,
-        VAR_LTFT = 7,
-        VAR_DIG0 = 8,
+        VAR_ANALOG1,
+        VAR_ANALOG2,
+        VAR_ANALOG3,
+        VAR_RPM,
+        VAR_MAP,
+        VAR_LTFT,
+        VAR_OCTANE_FACTOR,
+
+        VAR_ERR_CLT,
+        VAR_ERR_IAT,
+        VAR_ERR_MAP,
+        VAR_ERR_WBO,
+        VAR_KNOCK
+
+        /*VAR_DIG0 = 8,
         VAR_DIG1 = 9,
         VAR_DIG2 = 10,
-        VAR_DIG3 = 11
+        VAR_DIG3 = 11*/
     } coreVarName_t;
 
     void app_main();
@@ -92,6 +101,7 @@ extern "C"
     size_t core3_round_up(size_t numToRound, size_t multiple);
 
     uint32_t core3_time_ms();
+float core3_clock_sine(float phase, float divi);
 
     bool core3_var_watch_is_enabled();
     void core3_var_watch_set(bool enabled);
@@ -104,14 +114,17 @@ extern "C"
     float byte_to_correction(uint8_t byte);
     uint8_t correction_to_byte(float cor);
 
-    uint16_t core3_ecu_getMAP();
-    uint16_t core3_ecu_getRPM();
+    bool core3_ecu_errors(bool *errCLT, bool *errIAT, bool *errMAP, bool *errWBO, bool *Knock);
+
+    void core3_ecu_data1(uint16_t *RPM, uint16_t *MAP, uint16_t *CLT, uint8_t *TPS, uint8_t *IAT,
+                         float *WBOLam, float *LamTgt, float *LamCor);
+
     uint8_t core3_long_term_fuel_trim();
 
     void core3_ecu_tick();
     bool core3_emu_available();
-    uint8_t core3_octane_factor_get();
-    uint8_t core3_long_term_fuel_trim();
+    uint8_t core3_ecu_octane_factor();
+    uint8_t core3_ecu_long_term_fuel_trim();
 
     bool core3_ecu_ltft_serialize(void (*Callback)(void *User1, uint8_t *mem, size_t size), void *User1);
 

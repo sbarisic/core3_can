@@ -245,6 +245,7 @@ static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param
     switch (event)
     {
     case ESP_GAP_BLE_ADV_DATA_RAW_SET_COMPLETE_EVT:
+        core3_var_watch_set(false);
         esp_ble_gap_start_advertising(&spp_adv_params);
         is_advertising = true;
         break;
@@ -321,7 +322,17 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
             memcpy(&btData, param->write.value, sizeof(btDataStruc));
             // dprintf("Got btData ID %d\n", btData.ID);
 
-            if (btData.ID == btDataID_CAL_READ && btData.Data2 < 0xFF)
+            if (btData.ID == btDataID_HELLO)
+            {
+                btDataStruc btResponse;
+                btResponse.ID = btDataID_HELLO_RESP;
+                btResponse.Counter = btData.Counter;
+                btResponse.Data1 = 1;
+                btResponse.Data2 = 2;
+                btResponse.Data3 = 3;
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+            }
+            else if (btData.ID == btDataID_CAL_READ && btData.Data2 < 0xFF)
             {
                 btDataStruc btResponse;
                 btResponse.ID = btDataID_CAL_READ_RESP;
@@ -330,10 +341,10 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.Data2 = btData.Data2;
                 btResponse.Data3 = btData.Data3;
 
-                //if (!core3_ecu_ltft_serialize(send_mem, &btResponse))
+                // if (!core3_ecu_ltft_serialize(send_mem, &btResponse))
                 //{
-                    const void *flash_mem = core3_flash_cal_offset(btData.Data1);
-                    memcpy(&btResponse.Data, flash_mem, btData.Data2);
+                const void *flash_mem = core3_flash_cal_offset(btData.Data1);
+                memcpy(&btResponse.Data, flash_mem, btData.Data2);
                 //}
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
@@ -364,10 +375,15 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.ID = btDataID_VAR_WATCH_RESP;
                 btResponse.Counter = btData.Counter;
 
-                if (core3_var_watch_is_enabled())
-                    core3_var_watch_set(false);
-                else
-                    core3_var_watch_set(true);
+                if (btData.Data1 == 2)
+                {
+                    if (core3_var_watch_is_enabled())
+                        core3_var_watch_set(false);
+                    else
+                        core3_var_watch_set(true);
+                }
+                else if (btData.Data1 == 0 || btData.Data1 == 1)
+                    core3_var_watch_set((bool)btData.Data1);
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
             }
@@ -379,6 +395,10 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
 
                 xTaskCreate(restart_func, "rebooting", 1024 * 4, NULL, 1, NULL);
+            }
+            else
+            {
+                // dprintf("[Bluetooth] Unknown btData.ID = %d\n", btData.ID);
             }
         }
 
@@ -429,6 +449,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
         is_connected = false;
         spp_mtu_size = 23;
         enable_data_ntf = false;
+        core3_var_watch_set(false);
 
         esp_ble_gap_start_advertising(&spp_adv_params);
         is_advertising = true;

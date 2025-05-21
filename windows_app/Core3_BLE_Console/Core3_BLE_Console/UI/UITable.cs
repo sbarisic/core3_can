@@ -4,9 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.ConstrainedExecution;
 using System.Text;
 using System.Threading.Tasks;
 
+using Windows.Media.Playback;
 using Windows.UI.StartScreen;
 
 using static System.Net.Mime.MediaTypeNames;
@@ -15,7 +17,17 @@ using Font = Raylib_cs.Font;
 
 namespace Core3_BLE_Console.UI {
 	delegate byte InputToByteFunc(string Input);
-	delegate string ByteToInputFunc(byte B);
+	delegate UITableLabel ByteToInputFunc(byte B);
+
+	class UITableLabel {
+		public string Label;
+		public float Value;
+
+		public UITableLabel(string Lbl, float Val) {
+			this.Label = Lbl;
+			this.Value = Val;
+		}
+	}
 
 	class UITable : UIElement {
 		bool IsTableDragging = false;
@@ -33,13 +45,16 @@ namespace Core3_BLE_Console.UI {
 		public string TableDesc;
 		public string XDesc;
 		public string YDesc;
-		public string[] XLabels;
-		public string[] YLabels;
+		public UITableLabel[] XLabels;
+		public UITableLabel[] YLabels;
 		public GetTableLabelFunc GetTableLabel;
 		public GetTableColorFunc GetTableColor;
 
 		public InputToByteFunc InputToByte;
 		public ByteToInputFunc ByteToInput;
+
+		public BtWatcherVariable XAxisValue;
+		public BtWatcherVariable YAxisValue;
 
 		public UITable(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
 			ElementPosition = new Vector2(130, 150);
@@ -86,14 +101,14 @@ namespace Core3_BLE_Console.UI {
 			return "-";
 		}
 
-		string GetTableLabel_FromDelegate(int X, int Y) {
+		UITableLabel GetTableLabel_FromDelegate(int X, int Y) {
 			int Idx = DataOffset + Y * Width + X;
 
 			if (Idx >= 0 && Idx < DataMem.Length) {
 				return ByteToInput(DataMem[Idx]);
 			}
 
-			return "-";
+			return new UITableLabel("-", 0);
 		}
 
 		Color GetTableColor_White(int X, int Y) {
@@ -172,10 +187,60 @@ namespace Core3_BLE_Console.UI {
 			Vector2 WindowPos = Pos - WindowBorderSize;
 			Vector2 WindowSize = new Vector2((Width + 1) * CellSize.X, (Height + 1) * CellSize.Y) + (WindowBorderSize * 2);
 
+			float XVal = XAxisValue.ValueFloat;
+			float YVal = YAxisValue.ValueFloat;
+
+			if (XLabels == null || YLabels == null)
+				return;
+
+			float XPrev = XLabels[0].Value;
+			float XCur = XLabels[1].Value;
+			float XStep = XCur - XPrev;
+			float XHyst = XStep / 2;
+
+			float YPrev = YLabels[0].Value;
+			float YCur = YLabels[1].Value;
+			float YStep = YCur - YPrev;
+			float YHyst = YStep / 2;
+
+			float CursorX = ElementPosition.X;
+			float CursorY = ElementPosition.Y;
+
+			int HLCellX = 0;
+			int HLCellY = 0;
+
+			// X Axis offset
+			for (int i = 0; i < Width; i++) {
+				float Val = XLabels[i].Value;
+				float Lo = Val - XHyst;
+				float Hi = Val + XHyst;
+
+				if (XVal >= Lo && XVal < Hi) {
+					float XFactor = ((XVal - Lo) / XStep) - 0.5f;
+					CursorX += (CellSize.X * i) + (CellSize.X * XFactor) + (CellSize.X / 2);
+					HLCellX = i;
+					break;
+				}
+			}
+
+			// Y Axis offset
+			for (int i = 0; i < Height; i++) {
+				float Val = YLabels[i].Value;
+				float Lo = Val - YHyst;
+				float Hi = Val + YHyst;
+
+				if (YVal >= Lo && YVal < Hi) {
+					float YFactor = ((YVal - Lo) / YStep) - 0.5f;
+					CursorY += (CellSize.Y * i) + (CellSize.Y * YFactor) + (CellSize.Y / 2);
+					HLCellY = i;
+					break;
+				}
+			}
 
 			Raylib.DrawRectangleV(WindowPos, WindowSize, WindowBgColor);
 			Raylib.DrawTextEx(DrawFont, TableDesc, Pos - WindowBorderSize + new Vector2(50, 8), FontSize, FontSpacing, WindowHovered ? Color.Orange : Color.White);
 
+			// Table
 			for (int y = 0; y < Height; y++) {
 				for (int x = 0; x < Width; x++) {
 					DrawCell(y * Width + x, Pos + new Vector2(x * CellSize.X, y * CellSize.Y), CellSize, GetTableColor(x, FlipY ? (Height - y - 1) : y), OutlineColor, GetTableLabel(x, FlipY ? (Height - y - 1) : y));
@@ -186,17 +251,43 @@ namespace Core3_BLE_Console.UI {
 
 			OutlineColor = Color.Black;
 
+			// X Axis
 			for (int x = 0; x < Width; x++) {
-				DrawCell(-x - 1, Pos + new Vector2(x * CellSize.X, Height * CellSize.Y), CellSize, AxisBgColor, OutlineColor, XLabels[x]);
+				Color BgClr = AxisBgColor;
+
+				if (HLCellX == x)
+					BgClr = Color.SkyBlue;
+
+				DrawCell(-x - 1, Pos + new Vector2(x * CellSize.X, Height * CellSize.Y), CellSize, BgClr, OutlineColor, XLabels[x]);
 			}
 			Raylib.DrawTextEx(DrawFont, XDesc, Pos + new Vector2(50, Height * CellSize.Y + 50), FontSize, FontSpacing, Color.White);
 
 
-
+			// Y Axis
 			for (int y = 0; y < Height; y++) {
-				DrawCell(-y - 1 - Width, Pos + new Vector2(Width * CellSize.X, y * CellSize.Y), CellSize, AxisBgColor, OutlineColor, YLabels[FlipY ? (Height - y - 1) : y]);
+				Color BgClr = AxisBgColor;
+
+				if (HLCellY == y)
+					BgClr = Color.SkyBlue;
+
+				DrawCell(-y - 1 - Width, Pos + new Vector2(Width * CellSize.X, y * CellSize.Y), CellSize, BgClr, OutlineColor, YLabels[FlipY ? (Height - y - 1) : y]);
 			}
 			Raylib.DrawTextPro(DrawFont, YDesc, Pos + new Vector2((Width + 1) * CellSize.X + FontSize, 1 * CellSize.Y), new Vector2(0, 0), 90, FontSize, FontSpacing, Color.White);
+
+			// Draw cursor
+			{
+				int X = (int)ElementPosition.X;
+				int Y = (int)ElementPosition.Y;
+				int W = (int)(Width * CellSize.X);
+				int H = (int)(Height * CellSize.Y);
+				int CX = (int)CursorX;
+				int CY = (int)CursorY;
+
+				Raylib.DrawLine(CX, Y, CX, Y + H, Color.Red);
+				Raylib.DrawLine(X, CY, X + W, CY, Color.Red);
+
+				Raylib.DrawCircle((int)CursorX, (int)CursorY, 5, Color.Red);
+			}
 
 			ElementSize = WindowSize - WindowBorderSize;
 			ElementPosition = Pos;
@@ -223,7 +314,7 @@ namespace Core3_BLE_Console.UI {
 		int EditedCellIdx = 0;
 		int EditedCellRange = 0;
 
-		void DrawCell(int CellIdx, Vector2 Pos, Vector2 Size, Color BgColor, Color OutlineColor, string Txt) {
+		void DrawCell(int CellIdx, Vector2 Pos, Vector2 Size, Color BgColor, Color OutlineColor, UITableLabel Txt) {
 			int X = (int)Pos.X;
 			int Y = (int)Pos.Y;
 			int W = (int)Size.X;
@@ -286,7 +377,7 @@ namespace Core3_BLE_Console.UI {
 						UInput.BeginInput(
 							Pos + Size / 2,
 							8,
-							Txt,
+							Txt.Label,
 							(Key) => {
 								if (Key == KeyboardKey.Enter || Key == KeyboardKey.KpEnter)
 									return true;
@@ -413,9 +504,9 @@ namespace Core3_BLE_Console.UI {
 			int LineThick = 1;
 			Raylib.DrawRectangleLinesEx(new Rectangle(X, Y, W, H), LineThick, OutlineColor);
 
-			Vector2 TxtSz = Raylib.MeasureTextEx(DrawFont, Txt, FontSize, FontSpacing);
+			Vector2 TxtSz = Raylib.MeasureTextEx(DrawFont, Txt.Label, FontSize, FontSpacing);
 
-			Raylib.DrawTextEx(DrawFont, Txt, new Vector2(X + (W / 2) - (TxtSz.X / 2), Y + H / 6), FontSize, FontSpacing, Color.Black);
+			Raylib.DrawTextEx(DrawFont, Txt.Label, new Vector2(X + (W / 2) - (TxtSz.X / 2), Y + H / 6), FontSize, FontSpacing, Color.Black);
 		}
 	}
 }

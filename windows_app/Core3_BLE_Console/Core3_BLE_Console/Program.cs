@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 
 using Raylib_cs;
 
@@ -9,6 +10,20 @@ namespace Core3_BLE_Console {
 
 		static void Main(string[] args) {
 			Console.WriteLine("Starting");
+
+			/*Stopwatch SWatch = Stopwatch.StartNew();
+			float Phase = 0.7f;
+
+			while (true) {
+				long MS = SWatch.ElapsedMilliseconds;
+
+				float Val = MathF.Sin(MS / 1000.0f * Phase);
+
+				Val = MathF.Round(Val, 2);
+				Console.WriteLine("Val = {0}", Val);
+
+				Thread.Sleep(1);
+			}*/
 
 			WinWidth = 1680 + 300;
 			WinHeight = 900 + 300;

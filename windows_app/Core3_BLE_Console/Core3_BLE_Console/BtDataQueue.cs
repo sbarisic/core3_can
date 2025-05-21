@@ -7,8 +7,10 @@ using System.Threading.Tasks;
 
 namespace Core3_BLE_Console {
 	enum IDType : byte {
-		CAL_READ = 0x1, // uint32_T Data1 - Offset, uint32_t Data2 - Length
-		CAL_READ_RESP = 0x2, // 32 bytes of data
+		NULL,
+
+		CAL_READ, // uint32_T Data1 - Offset, uint32_t Data2 - Length
+		CAL_READ_RESP, // 32 bytes of data
 
 		CAL_WRITE,
 		CAL_WRITE_RESP,
@@ -24,6 +26,9 @@ namespace Core3_BLE_Console {
 
 		VAR_RBOOT,
 		VAR_RBOOT_RESP,
+
+		HELLO,
+		HELLO_RESP
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -57,6 +62,23 @@ namespace Core3_BLE_Console {
 	enum VarUnit : byte {
 		RAW = 0,
 		VOLT
+	}
+
+	enum ECUVariable : int {
+		VAR_ANALOG0 = 1,
+		VAR_ANALOG1,
+		VAR_ANALOG2,
+		VAR_ANALOG3,
+		VAR_RPM,
+		VAR_MAP,
+		VAR_LTFT,
+		VAR_OCTANE_FACTOR,
+
+		VAR_ERR_CLT,
+		VAR_ERR_IAT,
+		VAR_ERR_MAP,
+		VAR_ERR_WBO,
+		VAR_KNOCK
 	}
 
 	class BtWatcherVariable {
@@ -134,6 +156,8 @@ namespace Core3_BLE_Console {
 				}
 
 				Commands.Ret_CalReadResp(Orig.Counter, Orig.Data1, Orig.Data2, Orig.Data3, DataArr);
+			} else if (Orig.ID == IDType.HELLO && Return.ID == IDType.HELLO_RESP) {
+				Commands.Cmd_HelloResp(Return.Data1, Return.Data2, Return.Data3);
 			}
 
 			return false;
@@ -171,7 +195,9 @@ namespace Core3_BLE_Console {
 			return false;
 		}
 
-		public BtWatcherVariable GetVariable(string Name, uint Var) {
+		public BtWatcherVariable GetVariable(string Name, ECUVariable EcuVar) {
+			uint Var = (uint)EcuVar;
+
 			if (Variables.ContainsKey(Var))
 				return Variables[Var];
 
@@ -249,6 +275,24 @@ namespace Core3_BLE_Console {
 
 			Orig = new BtData();
 			return false;
+		}
+
+		public bool IsSending() {
+			lock (Lck) {
+				for (int i = 0; i < BtCommandArray.Length; i++) {
+					if (BtCommandArray[i] != null) {
+						return true;
+					}
+				}
+			}
+
+			return false;
+		}
+
+		public void FlushSendQueue() {
+			while (IsSending()) {
+				Thread.Sleep(1);
+			}
 		}
 
 		public bool TryEnqueueSend(BtData Cmd) {

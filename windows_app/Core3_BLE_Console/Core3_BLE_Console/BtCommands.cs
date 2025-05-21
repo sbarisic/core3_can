@@ -174,5 +174,16 @@ namespace Core3_BLE_Console {
 			//Console.WriteLine("{0} = {1}", Var, Val);
 			return true;
 		}
+
+		public BtData[] Cmd_Hello() {
+			List<BtData> Cmds = new List<BtData>();
+			Cmds.Add(CreateCommand(IDType.HELLO, 3, 2, 1));
+			return Cmds.ToArray();
+		}
+
+		public bool Cmd_HelloResp(uint Var1, uint Var2, uint Var3) {
+			Console.WriteLine("[Bluetooth] Hello!");
+			return true;
+		}
 	}
 }

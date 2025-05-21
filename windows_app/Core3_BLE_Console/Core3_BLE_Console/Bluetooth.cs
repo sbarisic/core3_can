@@ -62,7 +62,7 @@ namespace Core3_BLE_Console {
 				//CmdHandlerThread.Start();
 
 				while (true) {
-					Thread.Sleep(0);
+					Thread.Sleep(1);
 
 					DataQueue.Update((DataBytes) => {
 						BluetoothSend(DataBytes);
@@ -147,9 +147,23 @@ namespace Core3_BLE_Console {
 
 		private static void Program_ValueUpdated(object sender, Plugin.BLE.Abstractions.EventArgs.CharacteristicUpdatedEventArgs e) {
 			byte[] Val = e.Characteristic.Value;
-			//Console.WriteLine("Data received! Len {0}", Val.Length);
 
-			DataQueue.OnDataReceived(Val);
+			int FrameCount = Val.Length / sizeof(BtData);
+
+			if (FrameCount == 0) {
+				throw new NotImplementedException();
+			} else if (FrameCount == 1) {
+				DataQueue.OnDataReceived(Val);
+			} else {
+				for (int i = 0; i < FrameCount; i++) {
+					byte[] SubArray = new byte[sizeof(BtData)];
+
+					Array.Copy(Val, sizeof(BtData) * i, SubArray, 0, sizeof(BtData));
+
+					DataQueue.OnDataReceived(SubArray);
+				}
+			}
+
 		}
 
 		private static void Adapter_DeviceDiscovered(object sender, Plugin.BLE.Abstractions.EventArgs.DeviceEventArgs e) {

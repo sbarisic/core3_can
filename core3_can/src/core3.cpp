@@ -2,6 +2,7 @@
 #include <ecumaster.h>
 #include <core3_map.h>
 #include <core3_flash.h>
+#include <core3_bt.h>
 
 #include <nvs_flash.h>
 #include <esp_log.h>
@@ -18,6 +19,15 @@ emu_data_t emu;
 
 volatile uint8_t octane_factor;
 volatile uint8_t lftf_value;
+
+uint16_t fake_RPM = 1621;
+uint16_t fake_MAP = 85;
+uint16_t fake_CLT = 95;
+uint8_t fake_TPS = 0;
+uint8_t fake_IAT = 25;
+float fake_wboLambda = 1.0f;
+float fake_lambdaTarget = 1.0f;
+float fake_LambdaCorr = 1.0f;
 
 size_t core3_round_up(size_t numToRound, size_t multiple)
 {
@@ -43,42 +53,116 @@ void core3_ecu_add_ecumaster_frame(emu_data_t emu_data)
     emu_available = true;
 }
 
-uint8_t core3_octane_factor_get()
+uint8_t core3_ecu_octane_factor()
 {
     return octane_factor;
 }
 
-uint16_t fake_RPM = 1621;
-
-uint16_t core3_ecu_getRPM()
-{
-    if (!emu_available)
-        return fake_RPM;
-
-    uint16_t RPM = emu.RPM;
-    return RPM;
-}
-
-uint16_t fake_MAP = 82;
-
-uint16_t core3_ecu_getMAP()
-{
-    if (!emu_available)
-        return fake_MAP;
-
-    uint16_t MAP = emu.MAP;
-    return MAP;
-}
-
-uint8_t core3_long_term_fuel_trim()
+uint8_t core3_ecu_long_term_fuel_trim()
 {
     return lftf_value;
 }
 
+bool core3_ecu_errors(bool *errCLT, bool *errIAT, bool *errMAP, bool *errWBO, bool *Knock)
+{
+    if (emu_available)
+    {
+        return false;
+    }
+
+    bool hasError = false;
+
+    if (errCLT != NULL)
+    {
+        *errCLT = (emu.cel & ERR_CLT) > 0;
+        if (*errCLT)
+            hasError = true;
+    }
+
+    if (errIAT != NULL)
+    {
+        *errIAT = (emu.cel & ERR_IAT) > 0;
+        if (*errIAT)
+            hasError = true;
+    }
+
+    if (errMAP != NULL)
+    {
+        *errMAP = (emu.cel & ERR_MAP) > 0;
+        if (*errMAP)
+            hasError = true;
+    }
+
+    if (errWBO != NULL)
+    {
+        *errWBO = (emu.cel & ERR_WBO) > 0;
+        if (*errWBO)
+            hasError = true;
+    }
+
+    if (Knock != NULL)
+    {
+        *Knock = (emu.cel & KNOCKING) > 0;
+        if (*Knock)
+            hasError = true;
+    }
+
+    return hasError;
+}
+
+void core3_ecu_data2()
+{
+    if (emu_available)
+    {
+        return;
+    }
+}
+
+uint16_t getFakeRPM()
+{
+    float range = 1000;
+    return (uint16_t)(fake_RPM + (range / 2) + (core3_clock_sine(1.0f, range)));
+}
+
+uint16_t getFakeMAP()
+{
+    float range = 40;
+    return (uint16_t)(fake_MAP + (range / 2) + (core3_clock_sine(0.7f, range)));
+}
+
+void core3_ecu_data1(uint16_t *RPM, uint16_t *MAP, uint16_t *CLT, uint8_t *TPS, uint8_t *IAT,
+                     float *WBOLam, float *LamTgt, float *LamCor)
+{
+    if (RPM != NULL)
+        *RPM = emu_available ? emu.RPM : getFakeRPM();
+
+    if (MAP != NULL)
+        *MAP = emu_available ? emu.MAP : getFakeMAP();
+
+    if (CLT != NULL)
+        *CLT = emu_available ? emu.CLT : fake_CLT;
+
+    if (TPS != NULL)
+        *TPS = emu_available ? emu.TPS : fake_TPS;
+
+    if (IAT != NULL)
+        *IAT = emu_available ? emu.IAT : fake_IAT;
+
+    if (WBOLam != NULL)
+        *WBOLam = emu_available ? emu.wboLambda : fake_wboLambda;
+
+    if (LamTgt != NULL)
+        *LamTgt = emu_available ? emu.lambdaTarget : fake_lambdaTarget;
+
+    if (LamCor != NULL)
+        *LamCor = emu_available ? emu.LambdaCorrection : fake_LambdaCorr;
+}
+
 void core3_ecu_tick()
 {
-    uint16_t RPM = core3_ecu_getRPM();
-    uint16_t MAP = core3_ecu_getMAP();
+    uint16_t RPM = 0;
+    uint16_t MAP = 0;
+    core3_ecu_data1(&RPM, &MAP, NULL, NULL, NULL, NULL, NULL, NULL);
 
     lftf_value = core3_map_index(MapLTFT, MAP, RPM, NULL, NULL, NULL, NULL);
     // uint16_t MAP = core3_ecu_getMAP();
@@ -126,16 +210,25 @@ bool core3_ecu_ltft_serialize(void (*Callback)(void *User1, uint8_t *mem, size_t
     return true;
 }
 
+// int bt_stream_counter = 0;
+
 void core3_ecu_update_task(void *arg)
 {
     while (true)
     {
         core3_ecu_tick();
-        vTaskDelay(pdMS_TO_TICKS(50));
+
+        /*bt_stream_counter++;
+        if (bt_stream_counter > 3)
+        {
+            bt_stream_counter = 0;
+        }*/
+
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 
-void core3_ecu_cal_writeToFlash(void* User1, uint8_t *mem, size_t size)
+void core3_ecu_cal_writeToFlash(void *User1, uint8_t *mem, size_t size)
 {
     core3_flash_cal_erase(0, 0);
     core3_flash_cal_write(0x100, mem, size);
@@ -153,7 +246,7 @@ void core3_ecu_init()
         }
     }
 
-    //core3_ecu_ltft_serialize(core3_ecu_cal_writeToFlash, NULL);
+    // core3_ecu_ltft_serialize(core3_ecu_cal_writeToFlash, NULL);
 
     const void *MapLTFT_Flash = core3_flash_cal_offset(0x100);
     core3_map_deserialize(MapLTFT_Flash, &MapLTFT);

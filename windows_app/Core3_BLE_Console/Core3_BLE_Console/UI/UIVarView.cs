@@ -28,9 +28,9 @@ namespace Core3_BLE_Console.UI {
 			ElementSize = new Vector2(300, 600);
 
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-
-			for (int i = 1; i < 16; i++) {
-				DisplayLines.Add(DQ.GetVariable("var" + i.ToString(), (uint)i));
+			
+			foreach (ECUVariable ECUVar in Enum.GetValues<ECUVariable>()) {
+				DisplayLines.Add(DQ.GetVariable(ECUVar.ToString(), ECUVar));
 			}
 		}
 

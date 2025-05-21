@@ -9,8 +9,10 @@ extern "C"
 
     typedef enum
     {
-        btDataID_CAL_READ = 0x1,      // uint32_T Data1 - Offset, uint32_t Data2 - Length
-        btDataID_CAL_READ_RESP = 0x2, // 32 bytes of data
+        btDataID_NULL,
+
+        btDataID_CAL_READ,      // uint32_T Data1 - Offset, uint32_t Data2 - Length
+        btDataID_CAL_READ_RESP, // 32 bytes of data
 
         btDataID_CAL_WRITE,
         btDataID_CAL_WRITE_RESP,
@@ -26,6 +28,9 @@ extern "C"
 
         btDataID_VAR_RBOOT,
         btDataID_VAR_RBOOT_RESP,
+
+        btDataID_HELLO,
+        btDataID_HELLO_RESP,
     } btDataID;
 
     typedef struct PACKED_ATTR

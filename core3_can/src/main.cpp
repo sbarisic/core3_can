@@ -10,6 +10,10 @@
 #include <core3_bt.h>
 #include <core3_wifi.h>
 
+#include "stdio.h"
+#include "stdlib.h"
+#include "math.h"
+
 #include <esp_adc/adc_oneshot.h>
 
 #define LED_PIN WS2812_PIN // digital pin used to drive the LED strip
@@ -47,7 +51,7 @@ typedef struct
 TimerHandle_t core3_tick_timer;
 
 size_t var_count = 0;
-watcher_var variables[16];
+watcher_var variables[32];
 
 int64_t emu_tstp[8];
 // static emu_data_t emu_data;
@@ -69,6 +73,12 @@ int64_t min64(int64_t a, int64_t b)
 int64_t core3_clock_bootms()
 {
     return (int64_t)(esp_timer_get_time() / 1000);
+}
+
+float core3_clock_sine(float phase, float divi)
+{
+    float bootms = (float)(esp_timer_get_time() / 1000);
+    return sinf(bootms / 1000.0f * phase) * divi;
 }
 
 int64_t timestamp_get(uint32_t can_id)
@@ -304,12 +314,6 @@ varType_t core3_var_get(coreVarName_t var, float *out_varf, uint32_t *out_varu, 
 btDataStruc btResponse;
 
 static uint64_t ms = 0;
-static uint64_t var_stream_last = 0;
-static uint64_t var_stream_interval = 40;
-
-static uint64_t can_stream_last = 0;
-static uint64_t can_stream_interval = 60;
-
 static bool var_watch_enabled = false;
 
 bool core3_var_watch_is_enabled()
@@ -320,6 +324,8 @@ bool core3_var_watch_is_enabled()
 void core3_var_watch_set(bool enabled)
 {
     var_watch_enabled = enabled;
+
+    dprintf("[ECU] Realtime Data %s\n", var_watch_enabled ? "ENABLED" : "DISABLED");
 }
 
 uint32_t core3_time_ms()
@@ -329,17 +335,13 @@ uint32_t core3_time_ms()
 
 IRAM_ATTR void core3_tick(TimerHandle_t timer)
 {
-    ms = esp_timer_get_time() / 1000;
 
-    // dprintf("RPM: %d, MAP: %d, TPS: %d\n", emu_data.RPM, emu_data.MAP, emu_data.TPS);
-    //  dprintf("TPS: %d)
+}
 
-    // can_channel_turn_on_IPC();
-
-    if (ms >= var_stream_last + var_stream_interval)
+void variables_stream_task(void *arg)
+{
+    while (true)
     {
-        var_stream_last = ms;
-
         if (var_watch_enabled)
         {
             for (size_t i = 0; i < var_count; i++)
@@ -360,29 +362,28 @@ IRAM_ATTR void core3_tick(TimerHandle_t timer)
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
             }
         }
-    }
 
-    if (ms >= can_stream_last + can_stream_interval)
-    {
-        can_stream_last = ms;
-
-        core3_can_msg msg;
-        if (core3_can_rx_dequeue(&msg))
-        {
-            dprintf("Received CAN message!\n");
-        }
-
-        // TODO: Iterate over io_digitals and send all available can frames
+        vTaskDelay(pdMS_TO_TICKS(66));
     }
 }
 
 void update_variables_task(void *arg)
 {
+    float v0, v1, v2, v3;
+    uint16_t RPM = 0;
+    uint16_t MAP = 0;
+    bool errCLT = false;
+    bool errIAT = false;
+    bool errMAP = false;
+    bool errWBO = true;
+    bool Knock = false;
+
     while (true)
     {
-        float time = ms / 1000.0f;
-        float v0, v1, v2, v3;
+        core3_ecu_data1(&RPM, &MAP, NULL, NULL, NULL, NULL, NULL, NULL);
+        core3_ecu_errors(&errCLT, &errIAT, &errMAP, &errWBO, &Knock);
 
+        float time = ms / 1000.0f;
         core3_analog(GPIOA0_CH, &v0);
         core3_analog(GPIOA1_CH, &v1);
         core3_analog(GPIOA2_CH, &v2);
@@ -393,11 +394,18 @@ void update_variables_task(void *arg)
         core3_var_set("Analog2 ", VAR_ANALOG2, VARTYPE_FLOAT, v2, 0, time);
         core3_var_set("Analog3 ", VAR_ANALOG3, VARTYPE_FLOAT, v3, 0, time);
 
-        core3_var_set("RPM     ", VAR_RPM, VARTYPE_FLOAT, (float)core3_ecu_getRPM(), 0, time);
-        core3_var_set("MAP     ", VAR_MAP, VARTYPE_FLOAT, (float)core3_ecu_getMAP(), 0, time);
-        core3_var_set("LTFT    ", VAR_LTFT, VARTYPE_FLOAT, byte_to_correction(core3_long_term_fuel_trim()), 0, time);
+        core3_var_set("RPM     ", VAR_RPM, VARTYPE_FLOAT, (float)RPM, 0, time);
+        core3_var_set("MAP     ", VAR_MAP, VARTYPE_FLOAT, (float)MAP, 0, time);
+        core3_var_set("LTFT    ", VAR_LTFT, VARTYPE_FLOAT, byte_to_correction(core3_ecu_long_term_fuel_trim()), 0, time);
+        core3_var_set("OCT.FAC ", VAR_OCTANE_FACTOR, VARTYPE_FLOAT, core3_ecu_octane_factor() / 255.0f, 0, time);
 
-        vTaskDelay(pdMS_TO_TICKS(80));
+        core3_var_set("ERR.CLT ", VAR_ERR_CLT, VARTYPE_FLOAT, (errCLT ? 1.0f : 0.0f), 0, time);
+        core3_var_set("ERR.IAT ", VAR_ERR_IAT, VARTYPE_FLOAT, (errIAT ? 1.0f : 0.0f), 0, time);
+        core3_var_set("ERR.MAP ", VAR_ERR_MAP, VARTYPE_FLOAT, (errMAP ? 1.0f : 0.0f), 0, time);
+        core3_var_set("ERR.WBO ", VAR_ERR_WBO, VARTYPE_FLOAT, (errWBO ? 1.0f : 0.0f), 0, time);
+        core3_var_set("ERR.KNCK", VAR_KNOCK, VARTYPE_FLOAT, (Knock ? 1.0f : 0.0f), 0, time);
+
+        vTaskDelay(pdMS_TO_TICKS(70));
     }
 }
 
@@ -435,6 +443,7 @@ void core3_program(void *arg)
     xTimerStart(core3_tick_timer, pdMS_TO_TICKS(500));
 
     xTaskCreate(update_variables_task, "update_variables_task", 1024 * 10, NULL, CORE3_PROGRAM_PRIORITY, NULL);
+    xTaskCreate(variables_stream_task, "variables_stream_task", 1024 * 20, NULL, CORE3_VAR_STREAM_PRIORITY, NULL);
     vTaskDelete(NULL);
 }
 
