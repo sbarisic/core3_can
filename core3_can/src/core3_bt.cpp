@@ -638,7 +638,7 @@ void bt_send_task(void *arg)
 
     while (true)
     {
-        if (xSemaphoreTake(sendQueueSemaphore, portMAX_DELAY) == pdTRUE)
+        if (xSemaphoreTake(sendQueueSemaphore, 1) == pdTRUE)
         {
             if (send_queue_queued_bytes > 0)
             {

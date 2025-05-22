@@ -60,6 +60,8 @@ int64_t emu_tstp[8];
 can_message tx_frames[16];
 int tx_frames_count = 0;
 
+SemaphoreHandle_t varSemaphore = NULL;
+
 // Basic ==========================================================================================================
 
 int64_t min64(int64_t a, int64_t b)
@@ -234,72 +236,95 @@ void init_gpio_pins()
 
 bool core3_var_set(const char *name, coreVarName_t var, varType_t varType, float valf, uint32_t valu, float time)
 {
-    for (size_t i = 0; i < var_count; i++)
+    if (xSemaphoreTake(varSemaphore, portMAX_DELAY) == pdTRUE)
     {
-        if (variables[i].ID == var)
+        for (size_t i = 0; i < var_count; i++)
         {
-            variables[i].VarType = varType;
+            if (variables[i].ID == var)
+            {
+                variables[i].VarType = varType;
 
-            if (varType == VARTYPE_FLOAT)
-            {
-                *variables[i].ValPtr.Float = valf;
-            }
-            else if (varType == VARTYPE_UINT32)
-            {
-                *variables[i].ValPtr.Uint32 = valu;
-            }
-            else
-            {
-                dprintf("[ERROR] core3_var_set varType\n");
-            }
+                if (varType == VARTYPE_FLOAT)
+                {
+                    *variables[i].ValPtr.Float = valf;
+                }
+                else if (varType == VARTYPE_UINT32)
+                {
+                    *variables[i].ValPtr.Uint32 = valu;
+                }
+                else
+                {
+                    dprintf("[ERROR] core3_var_set varType\n");
+                }
 
-            variables[i].Time = time;
-            memcpy(variables[i].Name, name, sizeof(variables[i].Name));
-            return true;
+                variables[i].Time = time;
+                memcpy(variables[i].Name, name, sizeof(variables[i].Name));
+
+                xSemaphoreGive(varSemaphore);
+                return true;
+            }
         }
+
+        size_t newidx = var_count++;
+        variables[newidx].ID = var;
+        variables[newidx].VarType = VARTYPE_FLOAT;
+        variables[newidx].ValPtr.Float = (float *)malloc(sizeof(float));
+        variables[newidx].Time = time;
+        memcpy(variables[newidx].Name, name, sizeof(variables[newidx].Name));
+
+        xSemaphoreGive(varSemaphore);
+        return true;
     }
 
-    size_t newidx = var_count++;
-    variables[newidx].ID = var;
-    variables[newidx].VarType = VARTYPE_FLOAT;
-    variables[newidx].ValPtr.Float = (float *)malloc(sizeof(float));
-    variables[newidx].Time = time;
-    memcpy(variables[newidx].Name, name, sizeof(variables[newidx].Name));
-    return true;
+    return false;
 }
 
 varType_t core3_var_get(coreVarName_t var, float *out_varf, uint32_t *out_varu, float *out_time)
 {
-    for (size_t i = 0; i < var_count; i++)
+    if (xSemaphoreTake(varSemaphore, portMAX_DELAY) == pdTRUE)
     {
-        if (variables[i].ID == var)
+        for (size_t i = 0; i < var_count; i++)
         {
-            if (out_time != NULL)
-                *out_time = variables[i].Time;
-
-            varType_t varType = variables[i].VarType;
-
-            if (varType == VARTYPE_FLOAT)
+            if (variables[i].ID == var)
             {
-                if (out_varf != NULL)
-                    *out_varf = *variables[i].ValPtr.Float;
+                if (out_time != NULL)
+                    *out_time = variables[i].Time;
 
-                return varType;
-            }
-            else if (varType == VARTYPE_UINT32)
-            {
-                if (out_varu != NULL)
-                    *out_varu = *variables[i].ValPtr.Uint32;
+                varType_t varType = variables[i].VarType;
 
-                return varType;
-            }
-            else
-            {
-                dprintf("[ERROR] core3_var_get varType\n");
-            }
+                if (varType == VARTYPE_FLOAT)
+                {
+                    if (out_varf != NULL)
+                        *out_varf = *variables[i].ValPtr.Float;
 
-            break;
+                    xSemaphoreGive(varSemaphore);
+                    return varType;
+                }
+                else if (varType == VARTYPE_UINT32)
+                {
+                    if (out_varu != NULL)
+                        *out_varu = *variables[i].ValPtr.Uint32;
+
+                    xSemaphoreGive(varSemaphore);
+                    return varType;
+                }
+                else
+                {
+                    dprintf("[ERROR] core3_var_get varType\n");
+                }
+
+                break;
+            }
         }
+
+        if (out_time != NULL)
+            *out_time = 0.0f;
+
+        if (out_varf != NULL)
+            *out_varf = 0;
+
+        xSemaphoreGive(varSemaphore);
+        return VARTYPE_FLOAT;
     }
 
     if (out_time != NULL)
@@ -440,9 +465,8 @@ void core3_program(void *arg)
     core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(10), pdTRUE, NULL, core3_tick);
     xTimerStart(core3_tick_timer, pdMS_TO_TICKS(500));
 
-    xTaskCreate(update_variables_task, "update_variables_task", 1024 * 10, NULL, CORE3_VAR_UPDATE_PRIORITY, NULL);
-    xTaskCreate(variables_stream_task, "variables_stream_task", 1024 * 20, NULL, CORE3_VAR_STREAM_PRIORITY, NULL);
-    vTaskDelete(NULL);
+    xTaskCreate(update_variables_task, "update_var", 1024 * 20, NULL, CORE3_VAR_UPDATE_PRIORITY, NULL);
+    xTaskCreate(variables_stream_task, "var_stream", 1024 * 20, NULL, CORE3_VAR_STREAM_PRIORITY, NULL);
 }
 
 void app_main()
@@ -451,11 +475,16 @@ void app_main()
 
     core3_init();
     core3_flash_init();
+
+    vSemaphoreCreateBinary(varSemaphore);
     core3_program(NULL);
 
     while (true)
     {
-        // Cleanup
-        vTaskDelay(pdMS_TO_TICKS(10));
+        // vTaskList((char *) pcWriteBuffer);
+        // vTaskGetRunTimeStats((char *)pcWriteBuffer);
+        // printf("Run Times:\n%s\n", pcWriteBuffer);
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }

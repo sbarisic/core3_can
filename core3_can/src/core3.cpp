@@ -269,7 +269,7 @@ void core3_ecu_init()
     const void *MapLTFT_Flash = core3_flash_cal_offset(0x100);
     core3_map_deserialize(MapLTFT_Flash, &MapLTFT);
 
-    xTaskCreate(core3_ecu_update_task, "core3_ecu_update_task", 1024 * 15, NULL, CORE3_ECU_UPDATE_PRIORITY, NULL);
+    xTaskCreate(core3_ecu_update_task, "c3_ecu_update", 1024 * 15, NULL, CORE3_ECU_UPDATE_PRIORITY, NULL);
     /**dprintf("Indexing map\n");
     uint8_t map_val = core3_map_index(&MapLTFT, 5, 878, NULL, NULL, NULL, NULL);
     dprintf("MAP_VAL = 0x%02X, %d, %f\n", map_val, (int)map_val, byte_to_correction(map_val));

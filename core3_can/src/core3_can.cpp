@@ -261,9 +261,9 @@ bool core3_can_send(core3_can_msg *msg)
         return false;
 
     // core3_can_print(msg);
-    return true;
+    // return true;
 
-    /*twai_message_t message;
+    twai_message_t message;
 
     memcpy(message.data, msg->data, TWAI_FRAME_MAX_DLC);
     message.data_length_code = msg->data_length_code;
@@ -281,7 +281,7 @@ bool core3_can_send(core3_can_msg *msg)
         return true;
 
     // dprintf("core3_can_send esp_err: 0x%X\n", err);
-    return false;*/
+    return false;
 }
 
 bool core3_can_rx_enqueue(core3_can_msg *msg)
@@ -506,8 +506,8 @@ int core3_can_init(core3_can_timing timing, core3_can_mode mode)
         return ESP_FAIL;
     }
 
-    xTaskCreate(core3_can_task_receive, "core3_can_task_receive", 1024 * 10, NULL, CORE3_CAN_RECEIVE_PRIORITY, NULL);
-    xTaskCreate(core3_can_task_send, "core3_can_task_send", 1024 * 10, NULL, CORE3_CAN_SEND_PRIORITY, NULL);
+    xTaskCreate(core3_can_task_receive, "c3_can_receive", 1024 * 10, NULL, CORE3_CAN_RECEIVE_PRIORITY, NULL);
+    xTaskCreate(core3_can_task_send, "c3_can_send", 1024 * 10, NULL, CORE3_CAN_SEND_PRIORITY, NULL);
 
     dprintf("core3_can_init - CAN ok\n");
     return ESP_OK;
