@@ -29,7 +29,7 @@ namespace Core3_BLE_Console.UI {
 
 
 		public override bool HandleInput() {
-			Vector2 MousePos = Raylib.GetMousePosition();
+			Vector2 MousePos = Program.GetMousePosition();
 
 			if (CheckIsDisabled != null)
 				if (CheckIsDisabled(this)) {

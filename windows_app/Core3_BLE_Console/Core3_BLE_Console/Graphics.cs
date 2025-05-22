@@ -4,6 +4,7 @@ using Raylib_cs;
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Numerics;
@@ -29,7 +30,6 @@ namespace Core3_BLE_Console {
 
 		static UserInput UInput;
 		static List<UIElement> UIElements = new List<UIElement>();
-
 		static UITable Table_LTFT;
 
 		public static void AddUIElement(UIElement El) {
@@ -282,21 +282,21 @@ namespace Core3_BLE_Console {
 		}
 
 		public static void Draw() {
-			Raylib.BeginDrawing();
-			Raylib.ClearBackground(Color.DarkGreen);
+			Program.Draw_RenderTexture(() => {
+				Raylib.ClearBackground(Color.DarkGreen);
 
-			for (int i = UIElements.Count - 1; i >= 0; i--) {
-				if (UIElements[i].HandleInput())
-					break;
-			}
+				for (int i = UIElements.Count - 1; i >= 0; i--) {
+					if (UIElements[i].HandleInput())
+						break;
+				}
 
-			for (int i = 0; i < UIElements.Count; i++) {
-				UIElements[i].Draw();
-			}
+				for (int i = 0; i < UIElements.Count; i++) {
+					UIElements[i].Draw();
+				}
 
-			UInput.Draw();
-
-			Raylib.EndDrawing();
+				UInput.Draw();
+			});
+			Program.Draw();
 		}
 
 		static void DrawHexViewer(byte[] Memory) {

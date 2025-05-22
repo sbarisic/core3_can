@@ -20,7 +20,7 @@ namespace Core3_BLE_Console.UI {
 		int ButtonSpacing = 42;
 
 		public UIToolbar(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
-			ElementSize = new Vector2(Program.WinWidth, 70);
+			ElementSize = new Vector2(Program.ProgScreenWidth(), 70);
 		}
 
 		public UIButton AddButton(string Text, Action OnClick, Func<UIButton, bool> CheckIsDisabled = null) {
@@ -40,7 +40,7 @@ namespace Core3_BLE_Console.UI {
 			if (base.HandleInput())
 				return true;
 
-			Vector2 MousePos = Raylib.GetMousePosition();
+			Vector2 MousePos = Program.GetMousePosition();
 
 			if (IsMouseInside(MousePos)) {
 				UseBgColor = new Color(0, 0, 0, 120);

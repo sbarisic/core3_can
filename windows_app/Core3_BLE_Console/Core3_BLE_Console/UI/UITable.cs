@@ -139,7 +139,7 @@ namespace Core3_BLE_Console.UI {
 			Vector2 WindowPos = ElementPosition - WindowBorderSize;
 			Vector2 WindowSize = new Vector2((Width + 1) * CellSize.X, (Height + 1) * CellSize.Y) + (WindowBorderSize * 2);
 
-			Vector2 MousePos = Raylib.GetMousePosition();
+			Vector2 MousePos = Program.GetMousePosition();
 
 			if (IsTableDragging) {
 				Vector2 MouseDelta = MousePos - StartDragMousePos;
@@ -337,7 +337,7 @@ namespace Core3_BLE_Console.UI {
 			if (EditedCellIdx <= CellIdx && (EditedCellIdx + EditedCellRange) >= CellIdx)
 				BgColor = Color.Orange;
 
-			Vector2 MousePos = Raylib.GetMousePosition();
+			Vector2 MousePos = Program.GetMousePosition();
 
 			if (Utils.IsInside(Pos, Size, MousePos) && !UInput.IsBusy()) {
 				Color HoverColor = Color.Orange;

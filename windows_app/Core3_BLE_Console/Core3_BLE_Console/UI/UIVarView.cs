@@ -1,4 +1,5 @@
-﻿using Raylib_cs;
+﻿using ABI.Windows.Foundation;
+using Raylib_cs;
 
 using System;
 using System.Collections.Generic;
@@ -38,7 +39,7 @@ namespace Core3_BLE_Console.UI {
 			if (base.HandleInput())
 				return true;
 
-			Vector2 MousePos = Raylib.GetMousePosition();
+			Vector2 MousePos = Program.GetMousePosition();
 
 			if (IsMouseInside(MousePos)) {
 				UseBgColor = new Color(0, 0, 0, 120);
