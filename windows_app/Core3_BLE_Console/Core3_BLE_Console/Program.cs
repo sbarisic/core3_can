@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 using System.Text;
+
 using Raylib_cs;
 
 namespace Core3_BLE_Console {
@@ -8,6 +9,7 @@ namespace Core3_BLE_Console {
 		static bool UseRT = true;
 
 		static Vector2 RTPos;
+		static Vector2 RTScale;
 		static RenderTexture2D RT;
 
 		//static int WinWidth;
@@ -50,7 +52,7 @@ namespace Core3_BLE_Console {
 			//VirtMouse = Vector2.Clamp(VirtMouse, new Vector2(0, 0), new Vector2(WinWidth, WinHeight));
 			//return VirtMouse;
 
-			return (CurMouse * SScale) - RTPos;
+			return (CurMouse - RTPos) / RTScale;
 		}
 
 		public static void Draw_RenderTexture(Action DrawAct) {
@@ -69,18 +71,18 @@ namespace Core3_BLE_Console {
 			if (!UseRT)
 				return;
 
-			Vector2 ScreenScale = GetScreenScale();
 
 			Raylib.BeginDrawing();
 			Raylib.ClearBackground(Color.Black);
 
+			RTScale = GetScreenScale();
 			RTPos = new Vector2(
-					(GetScreenWidth() - (ProgScreenWidth() * ScreenScale.X)) * 0.5f,
-					(GetScreenHeight() - (ProgScreenHeight() * ScreenScale.Y)) * 0.5f
+					(GetScreenWidth() - (ProgScreenWidth() * RTScale.X)) * 0.5f,
+					(GetScreenHeight() - (ProgScreenHeight() * RTScale.Y)) * 0.5f
 				);
 
 			Rectangle SrcRec = new Rectangle(0.0f, 0.0f, RT.Texture.Width, -RT.Texture.Height);
-			Rectangle DstRec = new Rectangle(RTPos.X, RTPos.Y, ProgScreenWidth() * ScreenScale.X, ProgScreenHeight() * ScreenScale.Y);
+			Rectangle DstRec = new Rectangle(RTPos.X, RTPos.Y, ProgScreenWidth() * RTScale.X, ProgScreenHeight() * RTScale.Y);
 
 
 			Raylib.DrawTexturePro(RT.Texture, SrcRec, DstRec, Vector2.Zero, 0.0f, Color.White);
@@ -105,12 +107,12 @@ namespace Core3_BLE_Console {
 			}*/
 
 			// Window size
-			int WinWidth = 1680;
-			int WinHeight = 900;
+			int WinWidth = 1680 + 300;
+			int WinHeight = 900 + 300;
 
 			// Render size
-			ProgWidth = 1680;
-			ProgHeight = 900;
+			ProgWidth = 1680 + 300;
+			ProgHeight = 900 + 300;
 
 
 
@@ -127,6 +129,8 @@ namespace Core3_BLE_Console {
 			//Raylib.SetTargetFPS(240);
 
 			RT = Raylib.LoadRenderTexture((int)ProgScreenWidth(), (int)ProgScreenHeight());
+			//Raylib.SetTextureFilter(RT.Texture, TextureFilter.Trilinear);
+			Raylib.SetTextureFilter(RT.Texture, TextureFilter.Point);
 			Graphics.Init();
 
 
