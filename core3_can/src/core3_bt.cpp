@@ -330,7 +330,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.Data1 = 1;
                 btResponse.Data2 = 2;
                 btResponse.Data3 = 3;
-                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), true);
             }
             else if (btData.ID == btDataID_CAL_READ && btData.Data2 < 0xFF)
             {
@@ -347,7 +347,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 memcpy(&btResponse.Data, flash_mem, btData.Data2);
                 //}
 
-                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+                while (!core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), false))
+                    vTaskDelay(pdMS_TO_TICKS(1));
             }
             else if (btData.ID == btDataID_CAL_WRITE && btData.Data2 < 0xFF)
             {
@@ -357,7 +358,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.Data3 = btData.Data3;
                 btResponse.Data1 = core3_flash_cal_write(btData.Data1, &btData.Data[0], btData.Data2) ? 0x1 : 0x0;
 
-                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+                while (!core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), false))
+                    vTaskDelay(pdMS_TO_TICKS(1));
             }
             else if (btData.ID == btDataID_CAL_ERASE)
             {
@@ -367,7 +369,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.Data3 = btData.Data3;
                 btResponse.Data1 = core3_flash_cal_erase(btData.Data1, btData.Data2);
 
-                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), true);
             }
             else if (btData.ID == btDataID_VAR_WATCH)
             {
@@ -385,14 +387,14 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 else if (btData.Data1 == 0 || btData.Data1 == 1)
                     core3_var_watch_set((bool)btData.Data1);
 
-                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), true);
             }
             else if (btData.ID == btDataID_VAR_RBOOT)
             {
                 btDataStruc btResponse;
                 btResponse.ID = btDataID_VAR_RBOOT_RESP;
                 btResponse.Counter = btData.Counter;
-                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), true);
 
                 xTaskCreate(restart_func, "rebooting", 1024 * 4, NULL, 1, NULL);
             }
@@ -531,21 +533,90 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
     } while (0);
 }
 
-bool core3_bt_send_data_len(uint8_t *dat, int len)
+SemaphoreHandle_t sendQueueSemaphore = NULL;
+size_t send_queue_len = 0;
+size_t send_queue_idx = 0;
+size_t send_queue_queued_bytes = 0;
+uint8_t *send_queue_memory = NULL;
+bool send_queue_valid = false;
+
+void init_bt_queue()
+{
+    if (send_queue_valid)
+        return;
+
+    send_queue_valid = true;
+    dprintf("[Bluetooth] Init queue\n");
+
+    send_queue_len = sizeof(btDataStruc) * 11;
+    send_queue_idx = 0;
+    send_queue_memory = (uint8_t *)malloc(send_queue_len);
+
+    if (send_queue_memory == NULL)
+        dprintf("[Bluetooth] send_queue_memory alloc failed\n");
+
+    vSemaphoreCreateBinary(sendQueueSemaphore);
+
+    if (sendQueueSemaphore == NULL)
+    {
+        dprintf("[Bluetooth][ERR] Cannot create BT queue semaphore\n");
+        return;
+    }
+}
+
+bool core3_bt_send_data_len(uint8_t *dat, int len, bool no_wait)
 {
     if (!is_connected)
         return false;
 
-    if (len < 0)
+    init_bt_queue();
+
+    if (sendQueueSemaphore == NULL)
         return false;
 
-    if (len >= 128)
-        return false;
-
-    if (esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], len,
-                                    (uint8_t *)dat, false) != ESP_OK)
+    if (len != sizeof(btDataStruc))
     {
+        dprintf("[Bluetooth][ERR] Sending BT packet of wrong size %d\n", len);
         return false;
+    }
+
+    if (no_wait)
+    {
+        if (esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], len,
+                                        (uint8_t *)dat, false) != ESP_OK)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        bool retVal = false;
+
+        if (xSemaphoreTake(sendQueueSemaphore, 2) == pdTRUE)
+        {
+            /*if ((send_queue_idx + len) <= send_queue_len)
+            {
+            }
+            else
+            {
+                send_queue_idx = 0;
+            }*/
+
+            if ((send_queue_idx + len) <= send_queue_len)
+            {
+                memcpy(&send_queue_memory[send_queue_idx], dat, len);
+                send_queue_idx += len;
+                send_queue_queued_bytes += len;
+                retVal = true;
+            }
+            else
+            {
+            }
+
+            xSemaphoreGive(sendQueueSemaphore);
+        }
+
+        return retVal;
     }
 
     return true;
@@ -559,6 +630,41 @@ bool core3_bt_is_connected()
 bool core3_bt_is_advertising()
 {
     return is_advertising;
+}
+
+void bt_send_task(void *arg)
+{
+    dprintf("[Bluetooth] bt_send_task running\n");
+
+    while (true)
+    {
+        if (xSemaphoreTake(sendQueueSemaphore, portMAX_DELAY) == pdTRUE)
+        {
+            if (send_queue_queued_bytes > 0)
+            {
+                size_t send_len = send_queue_idx;
+                send_queue_idx = 0;
+                send_queue_queued_bytes = 0;
+
+                // esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], len,
+                //                     (uint8_t *)dat, false);
+
+                // dprintf("BT Sending len %d\n", send_len);
+
+                if (esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], send_len,
+                                                (uint8_t *)send_queue_memory, false) != ESP_OK)
+                {
+                    // dprintf("send_indicate failed\n");
+                }
+
+                memset(send_queue_memory, 0, send_queue_len);
+            }
+
+            xSemaphoreGive(sendQueueSemaphore);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(40));
+    }
 }
 
 esp_err_t core3_bt_init()
@@ -616,5 +722,8 @@ esp_err_t core3_bt_init()
     }
 
     dprintf("[Bluetooth] OK\n");
+
+    init_bt_queue();
+    xTaskCreate(bt_send_task, "bt_send_task", 1024 * 15, NULL, CORE3_BT_SEND_PRIORITY, NULL);
     return ESP_OK;
 }

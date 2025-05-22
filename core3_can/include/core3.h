@@ -57,11 +57,12 @@
 #define GPIOA5_CH ADC_CHANNEL_5
 
 // Priorities
-#define CORE3_PROGRAM_PRIORITY 3
-#define CORE3_CAN_SEND_PRIORITY 4
-#define CORE3_CAN_RECEIVE_PRIORITY 5
-#define CORE3_ECU_UPDATE_PRIORITY 6
-#define CORE3_VAR_STREAM_PRIORITY 7
+#define CORE3_VAR_UPDATE_PRIORITY 3
+#define CORE3_VAR_STREAM_PRIORITY 4
+#define CORE3_ECU_UPDATE_PRIORITY 5
+#define CORE3_BT_SEND_PRIORITY 6
+#define CORE3_CAN_SEND_PRIORITY 7
+#define CORE3_CAN_RECEIVE_PRIORITY 8
 
 #if defined(__cplusplus)
 extern "C"
@@ -101,7 +102,7 @@ extern "C"
     size_t core3_round_up(size_t numToRound, size_t multiple);
 
     uint32_t core3_time_ms();
-float core3_clock_sine(float phase, float divi);
+    float core3_clock_sine(float phase, float divi);
 
     bool core3_var_watch_is_enabled();
     void core3_var_watch_set(bool enabled);
@@ -123,8 +124,10 @@ float core3_clock_sine(float phase, float divi);
 
     void core3_ecu_tick();
     bool core3_emu_available();
+
     uint8_t core3_ecu_octane_factor();
     uint8_t core3_ecu_long_term_fuel_trim();
+    uint8_t core3_ecu_dbw_target();
 
     bool core3_ecu_ltft_serialize(void (*Callback)(void *User1, uint8_t *mem, size_t size), void *User1);
 

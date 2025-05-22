@@ -202,7 +202,7 @@ void core3_can_update(can_message_ex *msg)
 
 void canUpdate_dbw(core3_can_msg *msg)
 {
-    core3_can_msg_ecumaster_dbw(msg, 255);
+    core3_can_msg_ecumaster_dbw(msg, core3_ecu_dbw_target());
 }
 
 void canUpdate_ecuOutput(core3_can_msg *msg)
@@ -260,7 +260,7 @@ bool core3_can_send(core3_can_msg *msg)
     if (msg == NULL)
         return false;
 
-    //core3_can_print(msg);
+    // core3_can_print(msg);
     return true;
 
     /*twai_message_t message;
@@ -401,6 +401,8 @@ void core3_can_task_receive(void *args)
                 // core3_can_rx_enqueue(&msg);
             }
         }
+
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
 

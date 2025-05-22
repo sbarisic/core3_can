@@ -254,7 +254,7 @@ bool core3_var_set(const char *name, coreVarName_t var, varType_t varType, float
             }
 
             variables[i].Time = time;
-            memcpy(variables[i].Name, name, 8);
+            memcpy(variables[i].Name, name, sizeof(variables[i].Name));
             return true;
         }
     }
@@ -264,7 +264,7 @@ bool core3_var_set(const char *name, coreVarName_t var, varType_t varType, float
     variables[newidx].VarType = VARTYPE_FLOAT;
     variables[newidx].ValPtr.Float = (float *)malloc(sizeof(float));
     variables[newidx].Time = time;
-    memcpy(variables[newidx].Name, name, 8);
+    memcpy(variables[newidx].Name, name, sizeof(variables[newidx].Name));
     return true;
 }
 
@@ -335,7 +335,6 @@ uint32_t core3_time_ms()
 
 IRAM_ATTR void core3_tick(TimerHandle_t timer)
 {
-
 }
 
 void variables_stream_task(void *arg)
@@ -359,11 +358,11 @@ void variables_stream_task(void *arg)
 
                 memcpy((void *)&btResponse.Data[sizeof(float) + sizeof(float)], variables[i].Name, 8);
 
-                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc));
+                core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), false);
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(66));
+        vTaskDelay(pdMS_TO_TICKS(40));
     }
 }
 
@@ -405,7 +404,7 @@ void update_variables_task(void *arg)
         core3_var_set("ERR.WBO ", VAR_ERR_WBO, VARTYPE_FLOAT, (errWBO ? 1.0f : 0.0f), 0, time);
         core3_var_set("ERR.KNCK", VAR_KNOCK, VARTYPE_FLOAT, (Knock ? 1.0f : 0.0f), 0, time);
 
-        vTaskDelay(pdMS_TO_TICKS(70));
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
@@ -424,16 +423,15 @@ void core3_program(void *arg)
 
     core3_bt_init();
 
+    core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
+    setup_can_channels();
+
     while (!core3_bt_is_advertising())
     {
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    core3_can_init(CORE3_CAN_TIMING_33_3KBPS, CORE3_CAN_MODE_NORMAL);
-    setup_can_channels();
-
     core3_ecu_init();
-
     dprintf("Done!\n");
 
     // btResponse = (btDataStruc *)malloc(sizeof(btDataStruc));
@@ -442,7 +440,7 @@ void core3_program(void *arg)
     core3_tick_timer = xTimerCreate("core3_tick", pdMS_TO_TICKS(10), pdTRUE, NULL, core3_tick);
     xTimerStart(core3_tick_timer, pdMS_TO_TICKS(500));
 
-    xTaskCreate(update_variables_task, "update_variables_task", 1024 * 10, NULL, CORE3_PROGRAM_PRIORITY, NULL);
+    xTaskCreate(update_variables_task, "update_variables_task", 1024 * 10, NULL, CORE3_VAR_UPDATE_PRIORITY, NULL);
     xTaskCreate(variables_stream_task, "variables_stream_task", 1024 * 20, NULL, CORE3_VAR_STREAM_PRIORITY, NULL);
     vTaskDelete(NULL);
 }
@@ -453,6 +451,11 @@ void app_main()
 
     core3_init();
     core3_flash_init();
+    core3_program(NULL);
 
-    xTaskCreate(core3_program, "core3_program", 1024 * 20, NULL, CORE3_PROGRAM_PRIORITY, NULL);
+    while (true)
+    {
+        // Cleanup
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
 }

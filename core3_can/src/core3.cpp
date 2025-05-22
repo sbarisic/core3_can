@@ -19,9 +19,13 @@ emu_data_t emu;
 
 volatile uint8_t octane_factor;
 volatile uint8_t lftf_value;
+volatile bool use_dbw;
+volatile uint8_t dbw_target;
 
-uint16_t fake_RPM = 1621;
-uint16_t fake_MAP = 85;
+uint16_t fake_RPM_base = 1621;
+uint16_t fake_RPM = 0;
+uint16_t fake_MAP_base = 85;
+uint16_t fake_MAP = 0;
 uint16_t fake_CLT = 95;
 uint8_t fake_TPS = 0;
 uint8_t fake_IAT = 25;
@@ -61,6 +65,14 @@ uint8_t core3_ecu_octane_factor()
 uint8_t core3_ecu_long_term_fuel_trim()
 {
     return lftf_value;
+}
+
+uint8_t core3_ecu_dbw_target()
+{
+    if (use_dbw)
+        return dbw_target;
+
+    return 0;
 }
 
 bool core3_ecu_errors(bool *errCLT, bool *errIAT, bool *errMAP, bool *errWBO, bool *Knock)
@@ -118,26 +130,26 @@ void core3_ecu_data2()
     }
 }
 
-uint16_t getFakeRPM()
+uint16_t calcFakeRPM()
 {
     float range = 1000;
-    return (uint16_t)(fake_RPM + (range / 2) + (core3_clock_sine(1.0f, range)));
+    return (uint16_t)(fake_RPM_base + (range / 2) + (core3_clock_sine(1.0f, range)));
 }
 
-uint16_t getFakeMAP()
+uint16_t calcFakeMAP()
 {
     float range = 40;
-    return (uint16_t)(fake_MAP + (range / 2) + (core3_clock_sine(0.7f, range)));
+    return (uint16_t)(fake_MAP_base + (range / 2) + (core3_clock_sine(0.7f, range)));
 }
 
 void core3_ecu_data1(uint16_t *RPM, uint16_t *MAP, uint16_t *CLT, uint8_t *TPS, uint8_t *IAT,
                      float *WBOLam, float *LamTgt, float *LamCor)
 {
     if (RPM != NULL)
-        *RPM = emu_available ? emu.RPM : getFakeRPM();
+        *RPM = emu_available ? emu.RPM : fake_RPM;
 
     if (MAP != NULL)
-        *MAP = emu_available ? emu.MAP : getFakeMAP();
+        *MAP = emu_available ? emu.MAP : fake_MAP;
 
     if (CLT != NULL)
         *CLT = emu_available ? emu.CLT : fake_CLT;
@@ -160,6 +172,9 @@ void core3_ecu_data1(uint16_t *RPM, uint16_t *MAP, uint16_t *CLT, uint8_t *TPS, 
 
 void core3_ecu_tick()
 {
+    fake_RPM = calcFakeRPM();
+    fake_MAP = calcFakeMAP();
+
     uint16_t RPM = 0;
     uint16_t MAP = 0;
     core3_ecu_data1(&RPM, &MAP, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -224,7 +239,7 @@ void core3_ecu_update_task(void *arg)
             bt_stream_counter = 0;
         }*/
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(12));
     }
 }
 
@@ -236,6 +251,9 @@ void core3_ecu_cal_writeToFlash(void *User1, uint8_t *mem, size_t size)
 
 void core3_ecu_init()
 {
+    dbw_target = 0;
+    use_dbw = false;
+
     MapLTFT = core3_map_create(AxisX_LFTF, sizeof(AxisX_LFTF) / sizeof(*AxisX_LFTF), AxisY_LFTF, sizeof(AxisY_LFTF) / sizeof(*AxisY_LFTF));
 
     for (size_t y = 0; y < MapLTFT->y.len; y++)

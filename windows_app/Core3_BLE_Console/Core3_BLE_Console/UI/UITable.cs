@@ -8,6 +8,7 @@ using System.Runtime.ConstrainedExecution;
 using System.Text;
 using System.Threading.Tasks;
 
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Media.Playback;
 using Windows.UI.StartScreen;
 
@@ -352,9 +353,26 @@ namespace Core3_BLE_Console.UI {
 					OutlineColor = Color.Black;
 
 				if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.C)) {
-					Console.WriteLine("Copy {0}", Txt);
+					Console.WriteLine("Copy {0}", Txt.Label);
+
+					WindowsClipboard.SetText(Txt.Label);
+
+
 				} else if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.V)) {
-					Console.WriteLine("Paste {0}", Txt);
+					string ClipStr = WindowsClipboard.GetText();
+
+					if (!string.IsNullOrEmpty(ClipStr)) {
+
+						Console.WriteLine("Paste {0}", ClipStr);
+
+						try {
+							WriteData(CellIdx, ClipStr);
+						} catch (Exception E) {
+							Console.WriteLine("Fail: {0}", E.Message);
+						}
+
+					}
+
 				} else if (Raylib.IsKeyPressed(KeyboardKey.Delete)) {
 					bool CtrlDown = Raylib.IsKeyDown(KeyboardKey.LeftControl);
 

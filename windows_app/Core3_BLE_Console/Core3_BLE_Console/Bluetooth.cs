@@ -86,7 +86,7 @@ namespace Core3_BLE_Console {
 			Thread.Sleep(200);
 
 			ICharacteristic[] Characteristics = null;
-			for (int i = 0; i < 5; i++) {
+			while (true) {
 				try {
 					Characteristics = Services[2].GetCharacteristicsAsync().GetAwaiter().GetResult().ToArray();
 					break;
@@ -94,8 +94,6 @@ namespace Core3_BLE_Console {
 				}
 				Thread.Sleep(200);
 			}
-
-			Thread.Sleep(200);
 
 			Characteristics[1].ValueUpdated += Program_ValueUpdated;
 			Characteristics[1].StartUpdatesAsync().GetAwaiter().GetResult();
@@ -155,6 +153,8 @@ namespace Core3_BLE_Console {
 			} else if (FrameCount == 1) {
 				DataQueue.OnDataReceived(Val);
 			} else {
+				//Console.WriteLine("Multiframe data");
+
 				for (int i = 0; i < FrameCount; i++) {
 					byte[] SubArray = new byte[sizeof(BtData)];
 

@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Plugin.BLE" Version="3.1.0" />
     <PackageReference Include="Raylib-cs" Version="7.0.1" />
+    <PackageReference Include="TextCopy" Version="6.2.1" />
   </ItemGroup>
 
   <ItemGroup>
