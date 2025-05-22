@@ -24,7 +24,9 @@ namespace Core3_BLE_Console {
 	delegate Color GetTableColorFunc(int X, int Y);
 
 	internal static class Graphics {
-		static Font DrawFont;
+		//static Font DrawFont;
+		static SdfFont TxtFont;
+
 		static float FontSpacing = 1;
 		static int FontSize = 36;
 
@@ -38,8 +40,11 @@ namespace Core3_BLE_Console {
 
 		public static void Init() {
 			//DrawFont = Raylib.LoadFontEx("data/fonts/martian_mono.ttf", FontSize, null, 250);
-			DrawFont = Raylib.LoadFontEx("data/fonts/mmrtext.ttf", FontSize, null, 250);
+			//DrawFont = Raylib.LoadFontEx("data/fonts/mmrtext.ttf", FontSize, null, 250);
 			//DrawFont = Raylib.LoadFontEx("data/fonts/Enwallowify_Medium.ttf", FontSize, null, 250);
+
+			//TxtFont = new SdfFont("data/fonts/mmrtext.ttf", FontSize);
+			TxtFont = new SdfFont("data/fonts/mmrtextb.ttf", FontSize);
 
 			Thread TestThread = new Thread(() => {
 				while (!Bluetooth.IsConnected())
@@ -61,10 +66,11 @@ namespace Core3_BLE_Console {
 
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
 
-			UInput = new UserInput(DrawFont, FontSpacing, FontSize);
-			Table_LTFT = new UITable(DrawFont, FontSpacing, FontSize, UInput);
+			UInput = new UserInput(TxtFont, FontSpacing);
+			Table_LTFT = new UITable(TxtFont, FontSpacing, FontSize, UInput);
 			Table_LTFT.XAxisValue = DQ.GetVariable("-", ECUVariable.VAR_MAP);
 			Table_LTFT.YAxisValue = DQ.GetVariable("-", ECUVariable.VAR_RPM);
+			Table_LTFT.DefaultValue = "1";
 			AddUIElement(Table_LTFT);
 
 			/*UIGraph TestGraph0 = new UIGraph(DrawFont, FontSpacing, FontSize, UInput);
@@ -92,15 +98,17 @@ namespace Core3_BLE_Console {
 			TestGraph3.MaxValue = 300;
 			AddUIElement(TestGraph3);*/
 
-			UIToolbar Toolbar = new UIToolbar(DrawFont, FontSpacing, FontSize, UInput);
+			UIToolbar Toolbar = new UIToolbar(TxtFont, FontSpacing, FontSize, UInput);
 			Toolbar.AddButton("Download Cal", () => { DownloadCalibration(); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Erase Cal", () => { EraseCalibration(); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Upload Cal", () => { UploadCalibration(); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Realtime", () => { RealtimeData(); }, (Btn) => !Bluetooth.IsConnected());
 			Toolbar.AddButton("Reboot", () => { RebootECU(); }, (Btn) => !Bluetooth.IsConnected());
+			Toolbar.AddButton("Interp Hori", () => { InterpolateSelection(true); }, (Btn) => !Bluetooth.IsConnected());
+			Toolbar.AddButton("Interp Vert", () => { InterpolateSelection(false); }, (Btn) => !Bluetooth.IsConnected());
 			AddUIElement(Toolbar);
 
-			UIVarView VarView = new UIVarView(DrawFont, FontSpacing, FontSize, UInput);
+			UIVarView VarView = new UIVarView(TxtFont, FontSpacing, FontSize, UInput);
 			AddUIElement(VarView);
 
 
@@ -118,6 +126,10 @@ namespace Core3_BLE_Console {
 			MS.Write(new byte[256 - MS.Position]);
 
 			//OnMemReceived(TestTable, MS.ToArray());
+		}
+
+		static void InterpolateSelection(bool Horizontal) {
+			Table_LTFT.InterpolateSelection(Horizontal);
 		}
 
 		static void RebootECU() {
@@ -283,7 +295,7 @@ namespace Core3_BLE_Console {
 
 		public static void Draw() {
 			Program.Draw_RenderTexture(() => {
-				Raylib.ClearBackground(Color.DarkGreen);
+				Raylib.ClearBackground(new Color(188, 214, 230));
 
 				for (int i = UIElements.Count - 1; i >= 0; i--) {
 					if (UIElements[i].HandleInput())

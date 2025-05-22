@@ -1,4 +1,5 @@
 ﻿using ABI.Windows.Foundation;
+
 using Raylib_cs;
 
 using System;
@@ -24,12 +25,12 @@ namespace Core3_BLE_Console.UI {
 
 		List<BtWatcherVariable> DisplayLines = new List<BtWatcherVariable>();
 
-		public UIVarView(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
+		public UIVarView(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
 			ElementPosition = new Vector2(1200, 160);
 			ElementSize = new Vector2(300, 600);
 
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-			
+
 			foreach (ECUVariable ECUVar in Enum.GetValues<ECUVariable>()) {
 				DisplayLines.Add(DQ.GetVariable(ECUVar.ToString(), ECUVar));
 			}
@@ -42,7 +43,7 @@ namespace Core3_BLE_Console.UI {
 			Vector2 MousePos = Program.GetMousePosition();
 
 			if (IsMouseInside(MousePos)) {
-				UseBgColor = new Color(0, 0, 0, 120);
+				UseBgColor = WindowBgHoverColor;
 				return true;
 			}
 
@@ -58,7 +59,7 @@ namespace Core3_BLE_Console.UI {
 			for (int i = 0; i < DisplayLines.Count; i++) {
 				string Str = string.Format("{0} = {1}", DisplayLines[i].Name.Trim(), DisplayLines[i].ValueFloat);
 
-				Raylib.DrawTextEx(DrawFont, Str, ElementPosition + LineOffset, FontSize, FontSpacing, Color.White);
+				TxtFont.DrawTextEx(Str, ElementPosition + LineOffset, FontSpacing, Color.White);
 				LineOffset += new Vector2(0, FontSize / 2 + 5);
 			}
 

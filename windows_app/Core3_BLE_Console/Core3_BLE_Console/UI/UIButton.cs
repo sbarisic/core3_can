@@ -21,7 +21,7 @@ namespace Core3_BLE_Console.UI {
 		public Action ButtonOnClick;
 		public Func<UIButton, bool> CheckIsDisabled;
 
-		public UIButton(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
+		public UIButton(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
 			ElementSize = new Vector2(60, 30);
 		}
 
@@ -76,7 +76,7 @@ namespace Core3_BLE_Console.UI {
 
 		public void CalculateSize() {
 			if (!string.IsNullOrEmpty(ButtonText))
-				ElementSize = new Vector2(Raylib.MeasureTextEx(DrawFont, ButtonText, FontSize, FontSpacing).X, ElementSize.Y);
+				ElementSize = new Vector2(TxtFont.MeasureText(ButtonText, FontSpacing).X, ElementSize.Y);
 		}
 
 		public override void Draw() {
@@ -91,8 +91,13 @@ namespace Core3_BLE_Console.UI {
 			Raylib.DrawRectangleV(ElementPosition - BorderSize, ElementSize + BorderSize * 2, UseBgColor);
 			Raylib.DrawRectangleLinesEx(new Rectangle(ElementPosition - BorderSize, ElementSize + BorderSize * 2), 1, UseOutlineColor);
 
+			Color UseTextColor = TextColor;
+
+			if (!Utils.IsDark(UseBgColor))
+				UseTextColor = Color.Black;
+
 			if (!string.IsNullOrEmpty(ButtonText))
-				Raylib.DrawTextPro(DrawFont, ButtonText, ElementPosition + new Vector2(0, FontSpacing / 6), Vector2.Zero, 0, FontSize, FontSpacing, TextColor);
+				TxtFont.DrawTextPro(ButtonText, ElementPosition + new Vector2(0, FontSpacing / 6), Vector2.Zero, 0, FontSpacing, UseTextColor);
 		}
 	}
 }

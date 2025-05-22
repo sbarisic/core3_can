@@ -19,12 +19,12 @@ namespace Core3_BLE_Console.UI {
 		Vector2 NextButtonPosition = new Vector2(20, 20);
 		int ButtonSpacing = 42;
 
-		public UIToolbar(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
+		public UIToolbar(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
 			ElementSize = new Vector2(Program.ProgScreenWidth(), 70);
 		}
 
 		public UIButton AddButton(string Text, Action OnClick, Func<UIButton, bool> CheckIsDisabled = null) {
-			UIButton Btn1 = new UIButton(DrawFont, FontSpacing, FontSize, UInput);
+			UIButton Btn1 = new UIButton(TxtFont, FontSpacing, FontSize, UInput);
 			Btn1.ButtonText = Text;
 			Btn1.ElementPosition = NextButtonPosition;
 			Btn1.CalculateSize();
@@ -43,7 +43,7 @@ namespace Core3_BLE_Console.UI {
 			Vector2 MousePos = Program.GetMousePosition();
 
 			if (IsMouseInside(MousePos)) {
-				UseBgColor = new Color(0, 0, 0, 120);
+				UseBgColor = WindowBgHoverColor;
 				return true;
 			}
 

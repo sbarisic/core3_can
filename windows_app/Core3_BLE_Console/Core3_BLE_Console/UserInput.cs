@@ -1,4 +1,6 @@
-﻿using Raylib_cs;
+﻿using Core3_BLE_Console.UI;
+
+using Raylib_cs;
 
 using System;
 using System.Collections.Generic;
@@ -13,18 +15,17 @@ namespace Core3_BLE_Console {
 	delegate void UserInputOnInputCompleteFunc(string Str);
 
 	class UserInput {
-		Font DrawFont;
+		SdfFont TxtFont;
+
 		float FontSpacing = 1;
-		int FontSize = 36;
 
 		object Lck = new object();
 		List<char> InputBuffer = new List<char>();
 		string InputString;
 
-		public UserInput(Font DrawFont, float FontSpacing, int FontSize) {
-			this.DrawFont = DrawFont;
+		public UserInput(SdfFont DrawFont, float FontSpacing) {
+			this.TxtFont = DrawFont;
 			this.FontSpacing = FontSpacing;
-			this.FontSize = FontSize;
 		}
 
 		bool IsInput = false;
@@ -79,17 +80,17 @@ namespace Core3_BLE_Console {
 
 			Color WindowBgColor = new Color(0, 0, 0, 180);
 			Vector2 WindowPos = MousePosStart;
-			Vector2 WindowSize = new Vector2(MaxInputLen * FontSize + 4, FontSize + 4);
+			Vector2 WindowSize = new Vector2(MaxInputLen * TxtFont.FontSize + 4, TxtFont.FontSize + 4);
 
 			if (InputBuffer.Count == 0)
-				WindowSize = new Vector2(8 + 16, FontSize + 4);
+				WindowSize = new Vector2(8 + 16, TxtFont.FontSize + 4);
 			else
-				WindowSize = Raylib.MeasureTextEx(DrawFont, InputString, FontSize, FontSpacing) + new Vector2(16, 0);
+				WindowSize = TxtFont.MeasureText(InputString, FontSpacing) + new Vector2(16, 0);
 
 			Raylib.DrawRectangleV(WindowPos, WindowSize, WindowBgColor);
 			Raylib.DrawRectangleLines((int)WindowPos.X, (int)WindowPos.Y, (int)WindowSize.X, (int)WindowSize.Y, Color.Orange);
 
-			Raylib.DrawTextPro(DrawFont, InputString, WindowPos + new Vector2(8, FontSize / 6), new Vector2(0, 0), 0, FontSize, FontSpacing, Color.White);
+			TxtFont.DrawTextPro(InputString, WindowPos + new Vector2(8, TxtFont.FontSize / 6), new Vector2(0, 0), 0, FontSpacing, Color.White);
 		}
 
 		public void Update() {

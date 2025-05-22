@@ -46,13 +46,34 @@ namespace Core3_BLE_Console {
 			Vector2 CurMouse = Raylib.GetMousePosition();
 			Vector2 SScale = GetScreenScale();
 
-			//Vector2 VirtMouse = new Vector2(0, 0);
-			//VirtMouse.X = (CurMouse.X - (WinWidth - (ProgWidth * SScale.X)) * 0.5f) / SScale.X;
-			//VirtMouse.Y = (CurMouse.Y - (WinHeight - (ProgHeight * SScale.Y)) * 0.5f) / SScale.Y;
-			//VirtMouse = Vector2.Clamp(VirtMouse, new Vector2(0, 0), new Vector2(WinWidth, WinHeight));
-			//return VirtMouse;
-
 			return (CurMouse - RTPos) / RTScale;
+		}
+
+		static void CalcScalePos() {
+			RTScale = GetScreenScale();
+
+			RTPos = new Vector2(
+					(GetScreenWidth() - (ProgScreenWidth() * RTScale.X)) * 0.5f,
+					(GetScreenHeight() - (ProgScreenHeight() * RTScale.Y)) * 0.5f
+				);
+		}
+
+		static void OnResize() {
+			CalcScalePos();
+			Vector2 NewRTSize = new Vector2(ProgScreenWidth() * RTScale.X, ProgScreenHeight() * RTScale.Y);
+
+			if ((int)NewRTSize.X != ProgWidth && (int)NewRTSize.Y != ProgHeight) {
+				ProgWidth = (int)MathF.Round(NewRTSize.X);
+				ProgHeight = (int)MathF.Round(NewRTSize.Y);
+
+				Console.WriteLine("NewSize X {0}, Y {1}", ProgWidth, ProgHeight);
+
+				Raylib.UnloadRenderTexture(RT);
+				RT = Raylib.LoadRenderTexture(ProgWidth, ProgHeight);
+				Raylib.SetTextureFilter(RT.Texture, TextureFilter.Point);
+			}
+
+			CalcScalePos();
 		}
 
 		public static void Draw_RenderTexture(Action DrawAct) {
@@ -75,12 +96,7 @@ namespace Core3_BLE_Console {
 			Raylib.BeginDrawing();
 			Raylib.ClearBackground(Color.Black);
 
-			RTScale = GetScreenScale();
-			RTPos = new Vector2(
-					(GetScreenWidth() - (ProgScreenWidth() * RTScale.X)) * 0.5f,
-					(GetScreenHeight() - (ProgScreenHeight() * RTScale.Y)) * 0.5f
-				);
-
+			CalcScalePos();
 			Rectangle SrcRec = new Rectangle(0.0f, 0.0f, RT.Texture.Width, -RT.Texture.Height);
 			Rectangle DstRec = new Rectangle(RTPos.X, RTPos.Y, ProgScreenWidth() * RTScale.X, ProgScreenHeight() * RTScale.Y);
 
@@ -107,34 +123,38 @@ namespace Core3_BLE_Console {
 			}*/
 
 			// Window size
-			int WinWidth = 1680 + 300;
-			int WinHeight = 900 + 300;
+			int WinWidth = 1920;
+			int WinHeight = 1080;
 
 			// Render size
-			ProgWidth = 1680 + 300;
-			ProgHeight = 900 + 300;
+			ProgWidth = WinWidth;
+			ProgHeight = WinHeight;
 
-
+			float Ratio = (float)WinHeight / WinWidth;
 
 			Bluetooth.DoBluetooth();
 
 			Raylib.InitWindow(WinWidth, WinHeight, "Core3");
 			Raylib.SetExitKey(KeyboardKey.Null);
-			//Raylib.SetWindowState(ConfigFlags.Msaa4xHint);
-			//Raylib.SetWindowState(ConfigFlags.HighDpiWindow);
+			Raylib.SetWindowState(ConfigFlags.Msaa4xHint);
+			Raylib.SetWindowState(ConfigFlags.HighDpiWindow);
 			Raylib.SetWindowState(ConfigFlags.VSyncHint);
 			Raylib.SetWindowState(ConfigFlags.ResizableWindow);
-			Raylib.SetWindowMinSize(800, 600);
-			Raylib.SetWindowMaxSize(5120, 1440);
+			Raylib.SetWindowMinSize(800, (int)(800 * Ratio));
+			Raylib.SetWindowMaxSize(5120, (int)(5120 * Ratio));
 			//Raylib.SetTargetFPS(240);
 
 			RT = Raylib.LoadRenderTexture((int)ProgScreenWidth(), (int)ProgScreenHeight());
-			//Raylib.SetTextureFilter(RT.Texture, TextureFilter.Trilinear);
 			Raylib.SetTextureFilter(RT.Texture, TextureFilter.Point);
+			//Raylib.SetTextureFilter(RT.Texture, TextureFilter.Point);
 			Graphics.Init();
 
 
 			while (!Raylib.WindowShouldClose()) {
+				if (Raylib.IsWindowResized()) {
+					OnResize();
+				}
+
 				Graphics.Update();
 				Graphics.Draw();
 			}

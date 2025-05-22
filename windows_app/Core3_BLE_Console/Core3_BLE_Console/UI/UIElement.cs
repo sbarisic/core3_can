@@ -17,18 +17,19 @@ namespace Core3_BLE_Console.UI {
 	abstract class UIElement {
 		protected List<UIElement> Children = new List<UIElement>();
 
-		protected Font DrawFont;
+		protected SdfFont TxtFont;
 		protected float FontSpacing = 1;
 		protected int FontSize = 36;
 		protected UserInput UInput;
 
-		protected readonly Color WindowBgColor = new Color(0, 0, 0, 80);
+		protected readonly Color WindowBgColor = new Color(0, 0, 0, 120);
+		protected readonly Color WindowBgHoverColor = new Color(0, 0, 0, 140);
 
 		public Vector2 ElementPosition;
 		public Vector2 ElementSize;
 
-		public UIElement(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) {
-			this.DrawFont = DrawFont;
+		public UIElement(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) {
+			this.TxtFont = DrawFont;
 			this.FontSpacing = FontSpacing;
 			this.FontSize = FontSize;
 			this.UInput = UInput;

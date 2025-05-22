@@ -35,7 +35,7 @@ namespace Core3_BLE_Console.UI {
 		Raylib_cs.Image GraphImage;
 		Texture2D GraphTex;
 
-		public UIGraph(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
+		public UIGraph(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
 			ElementPosition = new Vector2(110, 110);
 			ElementSize = new Vector2(800, 150);
 
@@ -55,7 +55,7 @@ namespace Core3_BLE_Console.UI {
 			Vector2 MousePos = Program.GetMousePosition();
 
 			if (IsMouseInside(MousePos)) {
-				UseBgColor = new Color(0, 0, 0, 120);
+				UseBgColor = WindowBgHoverColor;
 				return true;
 			}
 
@@ -145,16 +145,16 @@ namespace Core3_BLE_Console.UI {
 			Vector2 RawMaxPos = new Vector2(ElementPosition.X + XOffset, ElementPosition.Y + (ElementSize.Y - HeightMax) - (FontSize / 3));
 			Vector2 RawMinPos = new Vector2(ElementPosition.X + XOffset, ElementPosition.Y + (ElementSize.Y - HeightMin) - (FontSize / 3));
 
-			Vector2 RawMaxSize = Raylib.MeasureTextEx(DrawFont, RawMax.ToString(), FontSize, FontSpacing);
-			Vector2 RawMinSize = Raylib.MeasureTextEx(DrawFont, RawMin.ToString(), FontSize, FontSpacing);
+			Vector2 RawMaxSize = TxtFont.MeasureText(RawMax.ToString(), FontSpacing);
+			Vector2 RawMinSize = TxtFont.MeasureText(RawMin.ToString(), FontSpacing);
 
 			//Raylib.DrawTextEx(DrawFont, RawMax.ToString(), RawMaxPos, FontSize, FontSpacing, Color.Orange);
 			//Raylib.DrawTextEx(DrawFont, RawMin.ToString(), RawMinPos, FontSize, FontSpacing, Color.SkyBlue);
 
-			Raylib.DrawTextPro(DrawFont, RawMin.ToString(), new Vector2(ElementPosition.X - 5, RawMinPos.Y), new Vector2(RawMinSize.X, 0), 0, FontSize, FontSpacing, Color.SkyBlue);
-			Raylib.DrawTextPro(DrawFont, RawMax.ToString(), new Vector2(ElementPosition.X - 5, RawMaxPos.Y), new Vector2(RawMaxSize.X, 0), 0, FontSize, FontSpacing, Color.Orange);
+			TxtFont.DrawTextPro(RawMin.ToString(), new Vector2(ElementPosition.X - 5, RawMinPos.Y), new Vector2(RawMinSize.X, 0), 0,  FontSpacing, Color.SkyBlue);
+			TxtFont.DrawTextPro(RawMax.ToString(), new Vector2(ElementPosition.X - 5, RawMaxPos.Y), new Vector2(RawMaxSize.X, 0), 0,  FontSpacing, Color.Orange);
+			TxtFont.DrawTextPro(Variable.Name, ElementPosition + new Vector2(5, 5), Vector2.Zero, 0,  FontSpacing, Color.White);
 
-			Raylib.DrawTextPro(DrawFont, Variable.Name, ElementPosition + new Vector2(5, 5), Vector2.Zero, 0, FontSize, FontSpacing, Color.White);
 
 			/*for (int i = 1; i < SamplesNormal.Length; i++) {
 				float Y0 = ElementSize.Y - (ElementSize.Y * SamplesNormal[i - 1]);

@@ -8,9 +8,10 @@ using System.Runtime.ConstrainedExecution;
 using System.Text;
 using System.Threading.Tasks;
 
-using Windows.ApplicationModel.DataTransfer;
 using Windows.Media.Playback;
 using Windows.UI.StartScreen;
+
+using WinRT;
 
 using static System.Net.Mime.MediaTypeNames;
 
@@ -30,11 +31,14 @@ namespace Core3_BLE_Console.UI {
 		}
 	}
 
+	delegate void GetSelectedFunc(int X, int Y, int Idx, UITableLabel Val);
+
 	class UITable : UIElement {
+		UndoBuffer UndoBuffer = new UndoBuffer();
+
 		bool IsTableDragging = false;
 		Vector2 StartDragMousePos;
 		Vector2 StartDragWindowPos;
-
 
 		public byte[] DataBackup;
 		public byte[] DataMem;
@@ -53,12 +57,119 @@ namespace Core3_BLE_Console.UI {
 
 		public InputToByteFunc InputToByte;
 		public ByteToInputFunc ByteToInput;
+		public string DefaultValue = "0";
 
 		public BtWatcherVariable XAxisValue;
 		public BtWatcherVariable YAxisValue;
 
-		public UITable(Font DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
+		Vector3 Cell_Hovered;
+		Vector2 Cell_Sel = new Vector2(3, 3);
+		Vector2 Cell_Selection = new Vector2(4, 5);
+
+		bool Cell_IsSelecting = false;
+
+		Color CursorColor = Color.SkyBlue;
+		float CursorBallRadius = 6;
+		float CursorLineThick = 2;
+
+		public UITable(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
 			ElementPosition = new Vector2(130, 150);
+		}
+
+		bool HasSelection() {
+			if (Cell_Sel.X < 0 || Cell_Sel.Y < 0) {
+				return false;
+			}
+
+			int X = (int)Cell_Sel.X;
+			int Y = (int)Cell_Sel.Y;
+			int W = (int)Cell_Selection.X;
+			int H = (int)Cell_Selection.Y;
+
+			if (W <= 0) {
+				X = X + W - 1;
+				W = -W + 2;
+
+				Cell_Sel.X = X;
+				Cell_Selection.X = W;
+			}
+
+			if (H <= 0) {
+				Y = Y + H - 1;
+				H = -H + 2;
+
+				Cell_Sel.Y = Y;
+				Cell_Selection.Y = H;
+			}
+
+			return true;
+		}
+
+		void EnumerateSelected(GetSelectedFunc GetSelected, Action OnRowBreak = null) {
+			if (!HasSelection())
+				return;
+
+			int last_y = 0;
+			int gets = 0;
+
+			for (int y = 0; y < Height; y++) {
+				for (int x = 0; x < Width; x++) {
+					if (Utils.IsInside(Cell_Sel, Cell_Selection, y * Width + x, Width)) {
+						if (y != last_y && gets > 0) {
+							last_y = y;
+
+							if (OnRowBreak != null)
+								OnRowBreak();
+						}
+
+
+						GetSelected(x, y, y * Width + x, GetTableLabel(x, y));
+						last_y = y;
+						gets++;
+					}
+				}
+			}
+		}
+
+		public void InterpolateSelection(bool Horizontal) {
+			if (!HasSelection())
+				return;
+
+			if (Horizontal) {
+
+				for (int y = (int)Cell_Sel.Y; y < (int)(Cell_Sel.Y + Cell_Selection.Y); y++) {
+					UITableLabel LblStart = GetTableLabel((int)Cell_Sel.X, y);
+					UITableLabel LblEnd = GetTableLabel((int)(Cell_Sel.X + Cell_Selection.X - 1), y);
+
+					for (int x = (int)Cell_Sel.X + 1; x < (int)(Cell_Sel.X + Cell_Selection.X - 1); x++) {
+						float fx = (x - Cell_Sel.X) / (Cell_Selection.X - 1);
+
+						float Val = Utils.Lerp(LblStart.Value, LblEnd.Value, fx);
+
+						WriteData(y * Width + x, Val.ToString());
+					}
+
+					Console.WriteLine();
+				}
+
+			} else {
+
+				for (int x = (int)Cell_Sel.X; x < (int)(Cell_Sel.X + Cell_Selection.X); x++) {
+					UITableLabel LblStart = GetTableLabel(x, (int)Cell_Sel.Y);
+					UITableLabel LblEnd = GetTableLabel(x, (int)(Cell_Sel.Y + Cell_Selection.Y - 1));
+
+					for (int y = (int)Cell_Sel.Y + 1; y < (int)(Cell_Sel.Y + Cell_Selection.Y - 1); y++) {
+						float fy = (y - Cell_Sel.Y) / (Cell_Selection.Y - 1);
+
+						float Val = Utils.Lerp(LblStart.Value, LblEnd.Value, fy);
+
+						WriteData(y * Width + x, Val.ToString());
+					}
+
+					Console.WriteLine();
+				}
+
+			}
 		}
 
 		string GetTableLabel_Hex(int XX, int YY) {
@@ -119,7 +230,10 @@ namespace Core3_BLE_Console.UI {
 		Color GetTableColor_LTFT(int X, int Y) {
 			byte val = DataMem[Y * Width + X + DataOffset];
 
-			return Utils.LerpColor(Color.SkyBlue, Color.White, Color.Orange, 0.75f, 1.25f, byte_to_correction(val));
+			Color Neg = new Color(84, 132, 176);
+			Color Pos = new Color(176, 104, 84);
+
+			return Utils.LerpColor(Neg, Color.White, Pos, 0.75f, 1.25f, byte_to_correction(val));
 		}
 
 		public void SetHexData(byte[] Data) {
@@ -130,6 +244,10 @@ namespace Core3_BLE_Console.UI {
 
 		static Vector2 CellSize = new Vector2(50, 30);
 
+		bool KeyPressedRepeat(KeyboardKey K) {
+			return Raylib.IsKeyPressed(K) || Raylib.IsKeyPressedRepeat(K);
+		}
+
 		public override bool HandleInput() {
 			if (base.HandleInput())
 				return true;
@@ -138,7 +256,6 @@ namespace Core3_BLE_Console.UI {
 			Vector2 WindowBorderSize = new Vector2(40, 40);
 			Vector2 WindowPos = ElementPosition - WindowBorderSize;
 			Vector2 WindowSize = new Vector2((Width + 1) * CellSize.X, (Height + 1) * CellSize.Y) + (WindowBorderSize * 2);
-
 			Vector2 MousePos = Program.GetMousePosition();
 
 			if (IsTableDragging) {
@@ -162,6 +279,119 @@ namespace Core3_BLE_Console.UI {
 					return true;
 				}
 			}
+
+			int TblX = (int)ElementPosition.X;
+			int TblY = (int)ElementPosition.Y;
+			int TblW = (int)(Width * CellSize.X);
+			int TblH = (int)(Height * CellSize.Y);
+
+			if (Raylib.IsKeyPressed(KeyboardKey.Delete) && HasSelection()) {
+				bool Success = false;
+
+				EnumerateSelected((X, Y, Idx, Val) => {
+					WriteData(Idx, DefaultValue);
+					Success = true;
+				});
+
+				if (Success)
+					return true;
+			} else if (KeyPressedRepeat(KeyboardKey.KpAdd) && HasSelection()) {
+				bool Success = false;
+				BeginUndo();
+
+				EnumerateSelected((X, Y, Idx, Val) => {
+					WriteData(Idx, (Val.Value + 0.01f).ToString());
+					Success = true;
+				});
+
+				EndUndo();
+				if (Success)
+					return true;
+			} else if (KeyPressedRepeat(KeyboardKey.KpSubtract) && HasSelection()) {
+				bool Success = false;
+				BeginUndo();
+
+				EnumerateSelected((X, Y, Idx, Val) => {
+					WriteData(Idx, (Val.Value - 0.01f).ToString());
+					Success = true;
+				});
+
+				EndUndo();
+				if (Success)
+					return true;
+			} else if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.C) && HasSelection()) {
+				StringBuilder CopyBuilder = new StringBuilder();
+
+				EnumerateSelected((X, Y, Idx, Val) => {
+					UITableLabel Lbl = GetTableLabel(X, Y);
+					CopyBuilder.AppendFormat("{0}\t", Lbl.Label);
+				}, () => {
+					CopyBuilder.Length--;
+					CopyBuilder.AppendLine();
+				});
+
+				WindowsClipboard.SetText(CopyBuilder.ToString().Trim());
+				return true;
+			} else if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.V) && HasSelection()) {
+				string TblTxt = WindowsClipboard.GetText().Trim();
+				BeginUndo();
+
+				if (TblTxt.Contains("\n") || TblTxt.Contains("\t")) {
+					Console.WriteLine("Table");
+
+					string[][] CSV = Utils.ParseCSV(TblTxt);
+					int H = CSV.Length;
+					int W = CSV[0].Length;
+
+					Cell_Selection.X = W;
+					Cell_Selection.Y = H;
+
+					for (int y = 0; y < H; y++) {
+						for (int x = 0; x < W; x++) {
+							int xx = x + (int)Cell_Sel.X;
+							int yy = y + (int)Cell_Sel.Y;
+
+							WriteData(yy * Width + xx, CSV[y][x]);
+						}
+					}
+
+				} else if (float.TryParse(TblTxt, out float TblFlt)) {
+					WriteData((int)Cell_Sel.Y * Width + (int)Cell_Sel.X, TblTxt);
+				}
+
+				EndUndo();
+				return true;
+			} else if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.Y) && HasSelection()) {
+				PopUndo();
+				return true;
+			}
+
+			if (Utils.IsInside(new Vector2(TblX, TblY), new Vector2(TblW, TblH), MousePos) && !UInput.IsBusy()) {
+				Vector2 TblRelativeCur = MousePos - new Vector2(TblX, TblY);
+				Vector2 CellPos = (TblRelativeCur / new Vector2(TblW, TblH)) * new Vector2(Width, Height);
+
+				Cell_Hovered = new Vector3((int)CellPos.X, (int)CellPos.Y, 0);
+				Cell_Hovered.Z = (int)Cell_Hovered.Y * Width + (int)Cell_Hovered.X;
+
+				if (Cell_IsSelecting) {
+					Cell_Selection = new Vector2((int)Cell_Hovered.X - (int)Cell_Sel.X + 1, (int)Cell_Hovered.Y - (int)Cell_Sel.Y + 1);
+				}
+
+				if (Raylib.IsMouseButtonPressed(MouseButton.Left) && !Cell_IsSelecting) {
+
+					Cell_Sel = new Vector2((int)Cell_Hovered.X, (int)Cell_Hovered.Y);
+					Cell_Selection = Vector2.Zero;
+					Cell_IsSelecting = true;
+
+				} else if ((Raylib.IsMouseButtonReleased(MouseButton.Left) || Raylib.IsMouseButtonUp(MouseButton.Left)) && Cell_IsSelecting) {
+
+					Cell_IsSelecting = false;
+
+				}
+
+				return true;
+			} else if (Cell_IsSelecting)
+				Cell_IsSelecting = false;
 
 			return false;
 		}
@@ -207,6 +437,7 @@ namespace Core3_BLE_Console.UI {
 			float CursorX = ElementPosition.X;
 			float CursorY = ElementPosition.Y;
 
+			// Highlighted cell by cursor
 			int HLCellX = 0;
 			int HLCellY = 0;
 
@@ -239,7 +470,7 @@ namespace Core3_BLE_Console.UI {
 			}
 
 			Raylib.DrawRectangleV(WindowPos, WindowSize, WindowBgColor);
-			Raylib.DrawTextEx(DrawFont, TableDesc, Pos - WindowBorderSize + new Vector2(50, 8), FontSize, FontSpacing, WindowHovered ? Color.Orange : Color.White);
+			TxtFont.DrawTextEx(TableDesc, Pos - WindowBorderSize + new Vector2(50, 8), FontSpacing, WindowHovered ? Color.Orange : Color.White);
 
 			// Table
 			for (int y = 0; y < Height; y++) {
@@ -248,7 +479,11 @@ namespace Core3_BLE_Console.UI {
 				}
 			}
 
-
+			if (DrawSelRect) {
+				DrawSelRect = false;
+				
+				Raylib.DrawRectangleLinesEx(SelRect, 3, Color.Red);
+			}
 
 			OutlineColor = Color.Black;
 
@@ -261,7 +496,7 @@ namespace Core3_BLE_Console.UI {
 
 				DrawCell(-x - 1, Pos + new Vector2(x * CellSize.X, Height * CellSize.Y), CellSize, BgClr, OutlineColor, XLabels[x]);
 			}
-			Raylib.DrawTextEx(DrawFont, XDesc, Pos + new Vector2(50, Height * CellSize.Y + 50), FontSize, FontSpacing, Color.White);
+			TxtFont.DrawTextEx(XDesc, Pos + new Vector2(50, Height * CellSize.Y + FontSize), FontSpacing, Color.White);
 
 
 			// Y Axis
@@ -273,7 +508,7 @@ namespace Core3_BLE_Console.UI {
 
 				DrawCell(-y - 1 - Width, Pos + new Vector2(Width * CellSize.X, y * CellSize.Y), CellSize, BgClr, OutlineColor, YLabels[FlipY ? (Height - y - 1) : y]);
 			}
-			Raylib.DrawTextPro(DrawFont, YDesc, Pos + new Vector2((Width + 1) * CellSize.X + FontSize, 1 * CellSize.Y), new Vector2(0, 0), 90, FontSize, FontSpacing, Color.White);
+			TxtFont.DrawTextPro(YDesc, Pos + new Vector2((Width + 1) * CellSize.X + FontSize, 1 * CellSize.Y), new Vector2(0, 0), 90, FontSpacing, Color.White);
 
 			// Draw cursor
 			{
@@ -284,14 +519,36 @@ namespace Core3_BLE_Console.UI {
 				int CX = (int)CursorX;
 				int CY = (int)CursorY;
 
-				Raylib.DrawLine(CX, Y, CX, Y + H, Color.Red);
-				Raylib.DrawLine(X, CY, X + W, CY, Color.Red);
-
-				Raylib.DrawCircle((int)CursorX, (int)CursorY, 5, Color.Red);
+				Raylib.DrawLineEx(new Vector2(CX, Y), new Vector2(CX, Y + H), CursorLineThick, CursorColor);
+				Raylib.DrawLineEx(new Vector2(X, CY), new Vector2(X + W, CY), CursorLineThick, CursorColor);
+				Raylib.DrawCircle((int)CursorX, (int)CursorY, CursorBallRadius, CursorColor);
 			}
 
 			ElementSize = WindowSize - WindowBorderSize;
 			ElementPosition = Pos;
+		}
+
+		List<UndoData> CurUndo = new List<UndoData>();
+
+		void BeginUndo() {
+			CurUndo.Clear();
+		}
+
+		void EndUndo() {
+			if (CurUndo.Count == 0)
+				return;
+
+			UndoBuffer.Push(CurUndo.ToArray());
+			CurUndo.Clear();
+		}
+
+		void PopUndo() {
+			UndoData[] UndoDat = UndoBuffer.Pop();
+
+			if (UndoDat != null)
+				foreach (UndoData Dat in UndoDat) {
+					DataMem[Dat.Offset] = Dat.OrigValue;
+				}
 		}
 
 		void WriteData(int Offset, string In) {
@@ -300,7 +557,9 @@ namespace Core3_BLE_Console.UI {
 			if (Offset < 0 || Offset >= DataMem.Length)
 				return;
 
+			byte Orig = DataMem[Offset];
 			DataMem[Offset] = InputToByte(In);
+			CurUndo.Add(new UndoData(Offset, DataMem[Offset], Orig));
 		}
 
 		byte ReadData(int Offset) {
@@ -312,8 +571,11 @@ namespace Core3_BLE_Console.UI {
 			return DataMem[Offset];
 		}
 
-		int EditedCellIdx = 0;
+		int EditedCellIdx = -9999;
 		int EditedCellRange = 0;
+
+		bool DrawSelRect = false;
+		Rectangle SelRect;
 
 		void DrawCell(int CellIdx, Vector2 Pos, Vector2 Size, Color BgColor, Color OutlineColor, UITableLabel Txt) {
 			int X = (int)Pos.X;
@@ -322,6 +584,7 @@ namespace Core3_BLE_Console.UI {
 			int H = (int)Size.Y;
 
 			bool IsCellDirty = false;
+			int OutlineThick = 1;
 
 			if (CellIdx + DataOffset >= 0 && CellIdx + DataOffset < DataMem.Length) {
 				if (DataMem[CellIdx + DataOffset] != DataBackup[CellIdx + DataOffset]) {
@@ -331,7 +594,8 @@ namespace Core3_BLE_Console.UI {
 
 			if (IsCellDirty) {
 				OutlineColor = Color.Blue;
-				BgColor = new Color(149, 197, 222);
+				OutlineThick = 2;
+				//BgColor = new Color(149, 197, 222);
 			}
 
 			if (EditedCellIdx <= CellIdx && (EditedCellIdx + EditedCellRange) >= CellIdx)
@@ -339,13 +603,42 @@ namespace Core3_BLE_Console.UI {
 
 			Vector2 MousePos = Program.GetMousePosition();
 
-			if (Utils.IsInside(Pos, Size, MousePos) && !UInput.IsBusy()) {
-				Color HoverColor = Color.Orange;
+			if (Utils.IsInside((int)Cell_Sel.X, (int)Cell_Sel.Y, (int)Cell_Selection.X, (int)Cell_Selection.Y, CellIdx, Width)) {
+				//BgColor = Color.Purple;
+				//OutlineColor = Color.Red;
+				//OutlineThick = 1;
+			}
 
-				if (CellIdx < 0)
-					HoverColor = new Color(BgColor.R - 20, BgColor.G - 20, BgColor.B - 20);
+			if ((int)Cell_Hovered.Z == CellIdx) {
+				BgColor = Color.SkyBlue;
+				//OutlineColor = Color.Purple;
+				//OutlineThick = 3;
+			}
 
-				Raylib.DrawRectangle(X, Y, W, H, HoverColor);
+			Raylib.DrawRectangle(X, Y, W, H, BgColor);
+
+			if (CellIdx == (int)((Cell_Sel.Y + Cell_Selection.Y) * Width + (int)(Cell_Sel.X + Cell_Selection.X))) {
+				int WW = (int)((Cell_Selection.X) * W);
+				int HH = (int)((Cell_Selection.Y) * H);
+				int StartX = (int)(X - WW);
+				int StartY = (int)(Y - HH);
+
+				if (WW < 0) {
+					StartX += WW - (int)(1 * CellSize.X);
+					WW = -WW + (int)(2 * CellSize.X);
+				}
+
+				if (HH < 0) {
+					StartY += HH - (int)(1 * CellSize.Y);
+					HH = -HH + (int)(2 * CellSize.Y);
+				}
+
+				SelRect = new Rectangle(StartX, StartY, WW, HH);
+				DrawSelRect = true;
+			}
+
+			if (Utils.IsInside(Pos, Size, MousePos) && !UInput.IsBusy() && false) {
+
 
 				if (IsCellDirty)
 					OutlineColor = Color.DarkBlue;
@@ -519,12 +812,11 @@ namespace Core3_BLE_Console.UI {
 
 
 			//Raylib.DrawRectangleLines(X, Y, W, H, Color.Black);
-			int LineThick = 1;
-			Raylib.DrawRectangleLinesEx(new Rectangle(X, Y, W, H), LineThick, OutlineColor);
+			Raylib.DrawRectangleLinesEx(new Rectangle(X, Y, W, H), OutlineThick, OutlineColor);
 
-			Vector2 TxtSz = Raylib.MeasureTextEx(DrawFont, Txt.Label, FontSize, FontSpacing);
+			Vector2 TxtSz = TxtFont.MeasureText(Txt.Label, FontSpacing);
 
-			Raylib.DrawTextEx(DrawFont, Txt.Label, new Vector2(X + (W / 2) - (TxtSz.X / 2), Y + H / 6), FontSize, FontSpacing, Color.Black);
+			TxtFont.DrawTextEx(Txt.Label, new Vector2(X + (W / 2) - (TxtSz.X / 2), Y + H / 6), FontSpacing, Color.Black);
 		}
 	}
 }
