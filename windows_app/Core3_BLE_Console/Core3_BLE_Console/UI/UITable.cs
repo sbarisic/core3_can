@@ -287,12 +287,14 @@ namespace Core3_BLE_Console.UI {
 
 			if (Raylib.IsKeyPressed(KeyboardKey.Delete) && HasSelection()) {
 				bool Success = false;
+				BeginUndo();
 
 				EnumerateSelected((X, Y, Idx, Val) => {
 					WriteData(Idx, DefaultValue);
 					Success = true;
 				});
 
+				EndUndo();
 				if (Success)
 					return true;
 			} else if (KeyPressedRepeat(KeyboardKey.KpAdd) && HasSelection()) {
@@ -421,16 +423,16 @@ namespace Core3_BLE_Console.UI {
 			float XVal = XAxisValue.ValueFloat;
 			float YVal = YAxisValue.ValueFloat;
 
-			if (XLabels == null || YLabels == null)
+			if (XLabels == null || YLabels == null || XLabels.Length == 0 || YLabels.Length == 0)
 				return;
 
-			float XPrev = XLabels[0].Value;
-			float XCur = XLabels[1].Value;
+			float XPrev = XLabels.Length > 0 ? XLabels[0].Value : 0;
+			float XCur = XLabels.Length > 0 ? XLabels[1].Value : 0;
 			float XStep = XCur - XPrev;
 			float XHyst = XStep / 2;
 
-			float YPrev = YLabels[0].Value;
-			float YCur = YLabels[1].Value;
+			float YPrev = YLabels.Length > 0 ? YLabels[0].Value : 0;
+			float YCur = YLabels.Length > 0 ? YLabels[1].Value : 0;
 			float YStep = YCur - YPrev;
 			float YHyst = YStep / 2;
 
@@ -481,7 +483,7 @@ namespace Core3_BLE_Console.UI {
 
 			if (DrawSelRect) {
 				DrawSelRect = false;
-				
+
 				Raylib.DrawRectangleLinesEx(SelRect, 3, Color.Red);
 			}
 
@@ -817,6 +819,11 @@ namespace Core3_BLE_Console.UI {
 			Vector2 TxtSz = TxtFont.MeasureText(Txt.Label, FontSpacing);
 
 			TxtFont.DrawTextEx(Txt.Label, new Vector2(X + (W / 2) - (TxtSz.X / 2), Y + H / 6), FontSpacing, Color.Black);
+		}
+
+		public void ResetUndoBuffer() {
+			if (UndoBuffer != null)
+				UndoBuffer.Clear();
 		}
 	}
 }

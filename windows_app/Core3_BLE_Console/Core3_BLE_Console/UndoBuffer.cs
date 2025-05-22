@@ -24,5 +24,9 @@ namespace Core3_BLE_Console {
 
 			return UndoStack.Pop();
 		}
+
+		public void Clear() {
+			UndoStack.Clear();
+		}
 	}
 }

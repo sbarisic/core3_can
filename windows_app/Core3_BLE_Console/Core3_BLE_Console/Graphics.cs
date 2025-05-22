@@ -160,7 +160,7 @@ namespace Core3_BLE_Console {
 			RealtimeData(0);
 
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x100, 960, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
+			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x40, 960, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
 
 			foreach (BtData Cmd in CmdArr) {
 				while (!DQ.TryEnqueueSend(Cmd))
@@ -254,7 +254,7 @@ namespace Core3_BLE_Console {
 					TestTable.YDesc = "RPM";
 					TestTable.XLabels = XAxis.Select(X => new UITableLabel(X.ToString(), X)).ToArray();
 					TestTable.YLabels = YAxis.Select(Y => new UITableLabel(Y.ToString(), Y)).ToArray();
-
+					TestTable.ResetUndoBuffer();
 				}
 			}
 
