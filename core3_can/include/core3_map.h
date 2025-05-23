@@ -43,7 +43,7 @@ extern "C"
     size_t core3_map_serialize(core3_map_t *map, void *dest_memory);
     bool core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr, size_t *read_bytes);
 
-    void core3_ecu_init();
+    void core3_ecu_init(bool isReInit);
 
 #if defined(__cplusplus)
 }

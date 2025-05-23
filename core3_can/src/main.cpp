@@ -466,7 +466,7 @@ void core3_program(void *arg)
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 
-    core3_ecu_init();
+    core3_ecu_init(false);
     dprintf("Done!\n");
 
     // btResponse = (btDataStruc *)malloc(sizeof(btDataStruc));
