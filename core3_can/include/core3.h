@@ -89,7 +89,8 @@ extern "C"
         VAR_ERR_IAT,
         VAR_ERR_MAP,
         VAR_ERR_WBO,
-        VAR_KNOCK
+        VAR_KNOCK,
+        VAR_LAM_COR
 
         /*VAR_DIG0 = 8,
         VAR_DIG1 = 9,

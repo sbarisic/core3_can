@@ -1,6 +1,7 @@
 #include <core3.h>
 #include <core3_bt.h>
 #include <core3_flash.h>
+#include <core3_map.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -360,6 +361,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 
                 while (!core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), false))
                     vTaskDelay(pdMS_TO_TICKS(1));
+
+                core3_ecu_mark_dirty();
             }
             else if (btData.ID == btDataID_CAL_ERASE)
             {
@@ -370,6 +373,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                 btResponse.Data1 = core3_flash_cal_erase(btData.Data1, btData.Data2);
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), true);
+                core3_ecu_mark_clear_time();
             }
             else if (btData.ID == btDataID_VAR_WATCH)
             {
@@ -548,7 +552,7 @@ void init_bt_queue()
     send_queue_valid = true;
     dprintf("[Bluetooth] Init queue\n");
 
-    send_queue_len = sizeof(btDataStruc) * 11;
+    send_queue_len = sizeof(btDataStruc) * 17;
     send_queue_idx = 0;
     send_queue_memory = (uint8_t *)malloc(send_queue_len);
 

@@ -78,7 +78,8 @@ namespace Core3_BLE_Console {
 		VAR_ERR_IAT,
 		VAR_ERR_MAP,
 		VAR_ERR_WBO,
-		VAR_KNOCK
+		VAR_KNOCK,
+		VAR_LAM_COR
 	}
 
 	class BtWatcherVariable {

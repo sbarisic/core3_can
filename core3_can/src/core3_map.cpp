@@ -99,6 +99,26 @@ void core3_map_set_raw(core3_map_t *map, int x, int y, uint8_t val)
     map->map_memory[idx] = val;
 }
 
+void core3_map_set_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t val)
+{
+    if (map == NULL)
+        return;
+
+    uint8_t X_Low;
+    uint8_t X_High;
+    float X_Lerp;
+    find_axis_idx(&map->x, X, &X_Low, &X_High, &X_Lerp);
+    int XIdx = X_Lerp > 0.5 ? X_High : X_Low;
+
+    uint8_t Y_Low;
+    uint8_t Y_High;
+    float Y_Lerp;
+    find_axis_idx(&map->y, Y, &Y_Low, &Y_High, &Y_Lerp);
+    int YIdx = Y_Lerp > 0.5 ? Y_High : Y_Low;
+
+    core3_map_set_raw(map, XIdx, YIdx, val);
+}
+
 uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t *outA, uint8_t *outB, uint8_t *outC, uint8_t *outD)
 {
     if (map == NULL)
@@ -213,12 +233,20 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
 
 bool core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr, size_t *read_bytes)
 {
-    //dprintf("Deserializing\n");
+    // dprintf("Deserializing\n");
 
     uint8_t *idx = (uint8_t *)src_memory;
 
     int x_len = *(int *)src_memory;
     idx += sizeof(int);
+
+    if (*tgt_map_ptr != NULL)
+    {
+        free((*tgt_map_ptr)->x.axis);
+        free((*tgt_map_ptr)->y.axis);
+        free((*tgt_map_ptr)->map_memory);
+        *tgt_map_ptr = NULL;
+    }
 
     if (x_len == 0 || x_len == -1)
     {

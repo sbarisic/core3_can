@@ -25,6 +25,8 @@
         "functional": "cpp",
         "algorithm": "cpp",
         "format": "cpp",
-        "cstddef": "cpp"
+        "cstddef": "cpp",
+        "limits": "cpp",
+        "cmath": "cpp"
     }
 }

@@ -321,6 +321,30 @@ namespace Core3_BLE_Console.UI {
 				EndUndo();
 				if (Success)
 					return true;
+			} else if (KeyPressedRepeat(KeyboardKey.Left) && HasSelection()) {
+				Cell_Sel.X -= 1;
+				if (Cell_Sel.X < 0)
+					Cell_Sel.X = 0;
+
+				return true;
+			} else if (KeyPressedRepeat(KeyboardKey.Right) && HasSelection()) {
+				Cell_Sel.X += 1;
+				if (Cell_Sel.X >= Width)
+					Cell_Sel.X = Width - 1;
+
+				return true;
+			} else if (KeyPressedRepeat(KeyboardKey.Up) && HasSelection()) {
+				Cell_Sel.Y -= 1;
+				if (Cell_Sel.Y < 0)
+					Cell_Sel.Y = 0;
+
+				return true;
+			} else if (KeyPressedRepeat(KeyboardKey.Down) && HasSelection()) {
+				Cell_Sel.Y += 1;
+				if (Cell_Sel.Y >= Height)
+					Cell_Sel.Y = Height - 1;
+
+				return true;
 			} else if (Raylib.IsKeyDown(KeyboardKey.LeftControl) && Raylib.IsKeyPressed(KeyboardKey.C) && HasSelection()) {
 				StringBuilder CopyBuilder = new StringBuilder();
 

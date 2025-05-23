@@ -35,6 +35,8 @@ extern "C"
     size_t core3_map_sizeof(int x_len, int y_len);
 
     void core3_map_set_raw(core3_map_t *map, int x, int y, uint8_t val);
+    void core3_map_set_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t val);
+    
     uint8_t core3_map_idx_raw(core3_map_t *map, int x, int y);
 
     uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y,
@@ -44,6 +46,8 @@ extern "C"
     bool core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr, size_t *read_bytes);
 
     void core3_ecu_init(bool isReInit);
+    void core3_ecu_mark_dirty();
+    void core3_ecu_mark_clear_time();
 
 #if defined(__cplusplus)
 }

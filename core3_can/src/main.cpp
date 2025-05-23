@@ -404,6 +404,7 @@ void update_variables_task(void *arg)
     float v0, v1, v2, v3;
     uint16_t RPM = 0;
     uint16_t MAP = 0;
+    float LamCor = 0;
     bool errCLT = false;
     bool errIAT = false;
     bool errMAP = false;
@@ -414,7 +415,7 @@ void update_variables_task(void *arg)
 
     while (true)
     {
-        core3_ecu_data1(&RPM, &MAP, NULL, NULL, NULL, NULL, NULL, NULL);
+        core3_ecu_data1(&RPM, &MAP, NULL, NULL, NULL, NULL, NULL, &LamCor);
         core3_ecu_errors(&errCLT, &errIAT, &errMAP, &errWBO, &Knock);
 
         float time = ms / 1000.0f;
@@ -438,6 +439,8 @@ void update_variables_task(void *arg)
         core3_var_set("eMAP", VAR_ERR_MAP, VARTYPE_FLOAT, (errMAP ? 1.0f : 0.0f), 0, time);
         core3_var_set("eWBO", VAR_ERR_WBO, VARTYPE_FLOAT, (errWBO ? 1.0f : 0.0f), 0, time);
         core3_var_set("eKNK", VAR_KNOCK, VARTYPE_FLOAT, (Knock ? 1.0f : 0.0f), 0, time);
+
+        core3_var_set("LamC", VAR_LAM_COR, VARTYPE_FLOAT, LamCor, 0, time);
 
         vTaskDelay(pdMS_TO_TICKS(20));
     }
