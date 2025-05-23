@@ -123,8 +123,8 @@ namespace Core3_BLE_Console {
 			}*/
 
 			// Window size
-			int WinWidth = 1920;
-			int WinHeight = 1080;
+			int WinWidth = 1900;
+			int WinHeight = 980;
 
 			// Render size
 			ProgWidth = WinWidth;

@@ -29,12 +29,37 @@ namespace Core3_BLE_Console {
 		static ICharacteristic BLE_Char = null;
 		static bool BLE_IsConnected;
 
+		public static int MTUSize = 512;
+		public static int PacketCounter;
+		public static float DataSpeedKbps;
+
+		static void CalculateSpeedTask() {
+			int LastCounter = 0;
+
+			float Div = 4;
+
+			while (true) {
+				int Diff = PacketCounter - LastCounter;
+				LastCounter = PacketCounter;
+
+				float Bs = (Diff * MTUSize) * Div;
+				float KBs = Bs / 1000.0f;
+
+				DataSpeedKbps = MathF.Round(KBs / 0.125f, 3);
+				Thread.Sleep((int)(1000 / Div));
+			}
+		}
+
 		public static void DoBluetooth() {
 			DataQueue = null;
 
 			BtThread = new Thread(BluetoothThread);
 			BtThread.IsBackground = true;
 			BtThread.Start();
+
+			Thread CalcSpeedThread = new Thread(CalculateSpeedTask);
+			CalcSpeedThread.IsBackground = true;
+			CalcSpeedThread.Start();
 
 			while (DataQueue == null)
 				Thread.Sleep(1);
@@ -144,6 +169,8 @@ namespace Core3_BLE_Console {
 		}
 
 		private static void Program_ValueUpdated(object sender, Plugin.BLE.Abstractions.EventArgs.CharacteristicUpdatedEventArgs e) {
+			PacketCounter++;
+
 			byte[] Val = e.Characteristic.Value;
 
 			int FrameCount = Val.Length / sizeof(BtData);

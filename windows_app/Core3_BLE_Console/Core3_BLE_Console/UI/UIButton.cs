@@ -22,7 +22,7 @@ namespace Core3_BLE_Console.UI {
 		public Func<UIButton, bool> CheckIsDisabled;
 
 		public UIButton(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
-			ElementSize = new Vector2(60, 30);
+			ElementSize = new Vector2(60, 20);
 		}
 
 		bool MouseButtonPressedInside;
@@ -97,7 +97,7 @@ namespace Core3_BLE_Console.UI {
 				UseTextColor = Color.Black;
 
 			if (!string.IsNullOrEmpty(ButtonText))
-				TxtFont.DrawTextPro(ButtonText, ElementPosition + new Vector2(0, FontSpacing / 6), Vector2.Zero, 0, FontSpacing, UseTextColor);
+				TxtFont.DrawTextPro(ButtonText, ElementPosition + new Vector2(0, -2), Vector2.Zero, 0, FontSpacing, UseTextColor);
 		}
 	}
 }

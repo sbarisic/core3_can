@@ -40,7 +40,7 @@ namespace Core3_BLE_Console {
 		public uint Data2;
 		public uint Data3;
 
-		public fixed byte Data[32];
+		public fixed byte Data[16];
 	}
 
 	[StructLayout(LayoutKind.Sequential, Pack = 1)]
@@ -163,7 +163,7 @@ namespace Core3_BLE_Console {
 			return false;
 		}
 
-		byte[] NameBytes = new byte[8];
+		byte[] NameBytes = new byte[4];
 
 		bool ProcessDataReturn(BtData Return) {
 			if (Return.ID == IDType.VAR_WATCH_RESP) {
@@ -172,7 +172,7 @@ namespace Core3_BLE_Console {
 				float Sec = ((float*)Return.Data)[0];
 				float Valf = ((float*)Return.Data)[1];
 
-				for (int i = 0; i < 8; i++) {
+				for (int i = 0; i < NameBytes.Length; i++) {
 					NameBytes[i] = Return.Data[8 + i];
 				}
 

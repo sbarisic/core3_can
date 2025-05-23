@@ -15,6 +15,7 @@
 #include "math.h"
 
 #include <esp_adc/adc_oneshot.h>
+#include <esp_vfs_eventfd.h>
 
 #define LED_PIN WS2812_PIN // digital pin used to drive the LED strip
 #define LED_COUNT 1        // number of LEDs on the strip
@@ -43,7 +44,7 @@ typedef struct
     } ValPtr;
 
     float Time;
-    char Name[8];
+    char Name[4];
 } watcher_var;
 
 // ====================================== Variables ======================================
@@ -380,13 +381,13 @@ void variables_stream_task(void *arg)
                 btResponse.Data1 = variables[i].ID;
                 btResponse.Data2 = *variables[i].ValPtr.Uint32;
 
-                memset((void *)btResponse.Data, 0, 32);
+                memset((void *)btResponse.Data, 0, sizeof(btResponse.Data));
                 ((float *)&btResponse.Data[0])[0] = variables[i].Time;
 
                 if (variables[i].ValPtr.Float != NULL)
                     ((float *)&btResponse.Data[0])[1] = *variables[i].ValPtr.Float;
 
-                memcpy((void *)&btResponse.Data[sizeof(float) + sizeof(float)], variables[i].Name, 8);
+                memcpy((void *)&btResponse.Data[sizeof(float) + sizeof(float)], variables[i].Name, sizeof(variables[i].Name));
 
                 core3_bt_send_data_len((uint8_t *)&btResponse, sizeof(btDataStruc), false);
             }
@@ -422,21 +423,21 @@ void update_variables_task(void *arg)
         core3_analog(GPIOA2_CH, &v2);
         core3_analog(GPIOA3_CH, &v3);
 
-        core3_var_set("Analog0 ", VAR_ANALOG0, VARTYPE_FLOAT, v0, 0, time);
-        core3_var_set("Analog1 ", VAR_ANALOG1, VARTYPE_FLOAT, v1, 0, time);
-        core3_var_set("Analog2 ", VAR_ANALOG2, VARTYPE_FLOAT, v2, 0, time);
-        core3_var_set("Analog3 ", VAR_ANALOG3, VARTYPE_FLOAT, v3, 0, time);
+        core3_var_set("Anl0", VAR_ANALOG0, VARTYPE_FLOAT, v0, 0, time);
+        core3_var_set("Anl1", VAR_ANALOG1, VARTYPE_FLOAT, v1, 0, time);
+        core3_var_set("Anl2", VAR_ANALOG2, VARTYPE_FLOAT, v2, 0, time);
+        core3_var_set("Anl3", VAR_ANALOG3, VARTYPE_FLOAT, v3, 0, time);
 
-        core3_var_set("RPM     ", VAR_RPM, VARTYPE_FLOAT, (float)RPM, 0, time);
-        core3_var_set("MAP     ", VAR_MAP, VARTYPE_FLOAT, (float)MAP, 0, time);
-        core3_var_set("LTFT    ", VAR_LTFT, VARTYPE_FLOAT, byte_to_correction(core3_ecu_long_term_fuel_trim()), 0, time);
-        core3_var_set("OCT.FAC ", VAR_OCTANE_FACTOR, VARTYPE_FLOAT, core3_ecu_octane_factor() / 255.0f, 0, time);
+        core3_var_set("RPM ", VAR_RPM, VARTYPE_FLOAT, (float)RPM, 0, time);
+        core3_var_set("MAP ", VAR_MAP, VARTYPE_FLOAT, (float)MAP, 0, time);
+        core3_var_set("LTFT", VAR_LTFT, VARTYPE_FLOAT, byte_to_correction(core3_ecu_long_term_fuel_trim()), 0, time);
+        core3_var_set("oFAC", VAR_OCTANE_FACTOR, VARTYPE_FLOAT, core3_ecu_octane_factor() / 255.0f, 0, time);
 
-        core3_var_set("ERR.CLT ", VAR_ERR_CLT, VARTYPE_FLOAT, (errCLT ? 1.0f : 0.0f), 0, time);
-        core3_var_set("ERR.IAT ", VAR_ERR_IAT, VARTYPE_FLOAT, (errIAT ? 1.0f : 0.0f), 0, time);
-        core3_var_set("ERR.MAP ", VAR_ERR_MAP, VARTYPE_FLOAT, (errMAP ? 1.0f : 0.0f), 0, time);
-        core3_var_set("ERR.WBO ", VAR_ERR_WBO, VARTYPE_FLOAT, (errWBO ? 1.0f : 0.0f), 0, time);
-        core3_var_set("ERR.KNCK", VAR_KNOCK, VARTYPE_FLOAT, (Knock ? 1.0f : 0.0f), 0, time);
+        core3_var_set("eCLT", VAR_ERR_CLT, VARTYPE_FLOAT, (errCLT ? 1.0f : 0.0f), 0, time);
+        core3_var_set("eIAT", VAR_ERR_IAT, VARTYPE_FLOAT, (errIAT ? 1.0f : 0.0f), 0, time);
+        core3_var_set("eMAP", VAR_ERR_MAP, VARTYPE_FLOAT, (errMAP ? 1.0f : 0.0f), 0, time);
+        core3_var_set("eWBO", VAR_ERR_WBO, VARTYPE_FLOAT, (errWBO ? 1.0f : 0.0f), 0, time);
+        core3_var_set("eKNK", VAR_KNOCK, VARTYPE_FLOAT, (Knock ? 1.0f : 0.0f), 0, time);
 
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -478,9 +479,76 @@ void core3_program(void *arg)
     xTaskCreate(variables_stream_task, "var_stream", 1024 * 20, NULL, CORE3_VAR_STREAM_PRIORITY, NULL);
 }
 
+void getLineInput(char buf[], size_t len)
+{
+    memset(buf, 0, len);
+
+    fflush(stdout);
+    fflush(stdin);
+    fpurge(stdin); // clears any junk in stdin
+
+    char *bufp;
+    bufp = buf;
+    while (true)
+    {
+        vTaskDelay(pdMS_TO_TICKS(10));
+
+        *bufp = getchar();
+        if (*bufp != '\0' && *bufp != 0xFF && *bufp != '\r') // ignores null input, 0xFF, CR in CRLF
+        {
+            //'enter' (EOL) handler
+            if (*bufp == '\n')
+            {
+                printf("\n");
+                fflush(stdout);
+                *bufp = '\0';
+
+                getchar();
+                break;
+            } // backspace handler
+            else if (*bufp == '\b')
+            {
+                if (bufp - buf >= 1)
+                {
+                    printf("\b \b");
+                    fflush(stdout);
+                    bufp--;
+                }
+            }
+            else
+            {
+                printf("%c", *bufp);
+                fflush(stdout);
+                // pointer to next character
+                bufp++;
+            }
+        }
+
+        // only accept len-1 characters, (len) character being null terminator.
+        if (bufp - buf > (len)-2)
+        {
+            bufp = buf + (len - 1);
+            *bufp = '\0';
+            break;
+        }
+    }
+}
+
 void app_main()
 {
     dprintf("Starting app!\n");
+
+    /*char line_mem[64] = {0};
+    while (true)
+    {
+        printf(">> ");
+        getLineInput(line_mem, 64);
+
+        vTaskDelay(pdMS_TO_TICKS(1));
+        printf("You wrote: '%s'\n", line_mem);
+
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }*/
 
     core3_init();
     core3_flash_init();

@@ -40,7 +40,7 @@ extern "C"
         uint32_t Data1;
         uint32_t Data2;
         uint32_t Data3;
-        uint8_t Data[32];
+        uint8_t Data[16];
     } btDataStruc;
 
     esp_err_t core3_bt_init();

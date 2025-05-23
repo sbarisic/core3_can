@@ -13,6 +13,7 @@ using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
 
+using Windows.ApplicationModel.Activation;
 using Windows.Devices.Usb;
 
 using static System.Net.Mime.MediaTypeNames;
@@ -307,6 +308,9 @@ namespace Core3_BLE_Console {
 				}
 
 				UInput.Draw();
+
+				TxtFont.DrawTextEx("Packets " + Bluetooth.PacketCounter.ToString(), new Vector2(Program.ProgScreenWidth() - 200, Program.ProgScreenHeight() - 50), 1, Color.Black);
+				TxtFont.DrawTextEx("kbps " + Bluetooth.DataSpeedKbps.ToString(), new Vector2(Program.ProgScreenWidth() - 200, Program.ProgScreenHeight() - 50 + FontSize / 1.8f), 1, Color.Black);
 			});
 			Program.Draw();
 		}

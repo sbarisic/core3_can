@@ -38,14 +38,16 @@ namespace Core3_BLE_Console {
 			ReadMemoryArray = new byte[Size];
 			this.OnCalReadCompleted = OnCalReadCompleted;
 
+			uint ReadSize = 16;
+
 			List<BtData> Cmds = new List<BtData>();
 			ReadMemoryCount.Clear();
 			ReadMemoryReceived.Clear();
 
-			for (uint x = 0; x < Size; x += 32) {
-				uint CalcSize = 32;
+			for (uint x = 0; x < Size; x += ReadSize) {
+				uint CalcSize = ReadSize;
 
-				if (x < Size && (x + 32) > Size)
+				if (x < Size && (x + ReadSize) > Size)
 					CalcSize = Size - x;
 
 				BtData Cmd = CreateCommand(IDType.CAL_READ, Offset + x, CalcSize, Offset);
@@ -88,14 +90,16 @@ namespace Core3_BLE_Console {
 		public BtData[] Cmd_CalWrite(uint Offset, uint Size, byte[] Data, Action OnCalWriteCompleted = null) {
 			this.OnCalWriteCompleted = OnCalWriteCompleted;
 
+			uint WriteSize = 16;
+
 			List<BtData> Cmds = new List<BtData>();
 			ReadMemoryCount.Clear();
 			ReadMemoryReceived.Clear();
 
-			for (uint x = 0; x < Size; x += 32) {
-				uint CalcSize = 32;
+			for (uint x = 0; x < Size; x += WriteSize) {
+				uint CalcSize = WriteSize;
 
-				if (x < Size && (x + 32) > Size)
+				if (x < Size && (x + WriteSize) > Size)
 					CalcSize = Size - x;
 
 				BtData Cmd = CreateCommand(IDType.CAL_WRITE, Offset + x, CalcSize, Offset);

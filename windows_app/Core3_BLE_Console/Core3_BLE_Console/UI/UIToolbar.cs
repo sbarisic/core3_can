@@ -16,11 +16,15 @@ namespace Core3_BLE_Console.UI {
 	class UIToolbar : UIElement {
 		Color UseBgColor;
 
-		Vector2 NextButtonPosition = new Vector2(20, 20);
+		Vector2 NextButtonPosition = new Vector2(20, 15);
 		int ButtonSpacing = 42;
 
 		public UIToolbar(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
-			ElementSize = new Vector2(Program.ProgScreenWidth(), 70);
+			RecalculateElementSize();
+		}
+
+		void RecalculateElementSize() {
+			ElementSize = new Vector2(Program.ProgScreenWidth(), 50);
 		}
 
 		public UIButton AddButton(string Text, Action OnClick, Func<UIButton, bool> CheckIsDisabled = null) {
@@ -52,6 +56,7 @@ namespace Core3_BLE_Console.UI {
 		}
 
 		public override void Draw() {
+			RecalculateElementSize();
 			Raylib.DrawRectanglePro(new Rectangle(ElementPosition, ElementSize), new Vector2(0, 0), 0, UseBgColor);
 
 			base.Draw();

@@ -25,9 +25,13 @@ namespace Core3_BLE_Console.UI {
 
 		List<BtWatcherVariable> DisplayLines = new List<BtWatcherVariable>();
 
-		public UIVarView(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
-			ElementPosition = new Vector2(1200, 160);
+		void RecalculatePosSize() {
 			ElementSize = new Vector2(300, 600);
+			ElementPosition = new Vector2(Program.ProgScreenWidth() - ElementSize.X - 10, 60);
+		}
+
+		public UIVarView(SdfFont DrawFont, float FontSpacing, int FontSize, UserInput UInput) : base(DrawFont, FontSpacing, FontSize, UInput) {
+			RecalculatePosSize();
 
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
 
@@ -52,6 +56,7 @@ namespace Core3_BLE_Console.UI {
 		}
 
 		public override void Draw() {
+			RecalculatePosSize();
 			Raylib.DrawRectanglePro(new Rectangle(ElementPosition, ElementSize), new Vector2(0, 0), 0, UseBgColor);
 
 			Vector2 LineOffset = new Vector2(10, 10);

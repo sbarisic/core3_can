@@ -227,29 +227,15 @@ bool core3_ecu_ltft_serialize(void (*Callback)(void *User1, uint8_t *mem, size_t
 
 // int bt_stream_counter = 0;
 
-void core3_ecu_update_task(void *arg)
-{
-    while (true)
-    {
-        core3_ecu_tick();
-
-        /*bt_stream_counter++;
-        if (bt_stream_counter > 3)
-        {
-            bt_stream_counter = 0;
-        }*/
-
-        vTaskDelay(pdMS_TO_TICKS(12));
-    }
-}
-
 void core3_ecu_cal_writeToFlash(void *User1, uint8_t *mem, size_t size)
 {
     core3_flash_cal_erase(0, 0);
     core3_flash_cal_write(0x100, mem, size);
 }
 
-void core3_ecu_init()
+void core3_ecu_update_task(void *arg);
+
+void core3_ecu_init(bool isReInit)
 {
     dbw_target = 0;
     use_dbw = false;
@@ -257,7 +243,7 @@ void core3_ecu_init()
     bool eraseCal = false;
     size_t maps_offset = 0x100;
 
-    dprintf("[ECU] Init, cal offset %d bytes\n", maps_offset);
+    dprintf("[ECU] %sInit, cal offset %d bytes\n", isReInit ? "Re" : "", maps_offset);
 
     // core3_ecu_ltft_serialize(core3_ecu_cal_writeToFlash, NULL);
 
@@ -283,9 +269,14 @@ void core3_ecu_init()
         }
 
         eraseCal = true;
-    } else {
+    }
+    else
+    {
         dprintf("[ECU] LTFT (%d bytes) ... OK\n", read_bytes);
     }
+
+    if (eraseCal && isReInit)
+        eraseCal = false;
 
     if (eraseCal)
     {
@@ -294,19 +285,36 @@ void core3_ecu_init()
 
         dprintf("[ECU] Cal writing %d bytes\n", len);
 
-        //core3_flash_cal_erase(0, 0);
-        //core3_flash_cal_write(maps_offset, temp_buf, len);
+        // core3_flash_cal_erase(0, 0);
+        // core3_flash_cal_write(maps_offset, temp_buf, len);
 
         core3_ecu_cal_writeToFlash(NULL, temp_buf, len);
         dprintf("[ECU] Maps written (%d bytes)\n", len);
     }
 
-    xTaskCreate(core3_ecu_update_task, "c3_ecu_update", 1024 * 15, NULL, CORE3_ECU_UPDATE_PRIORITY, NULL);
+    if (!isReInit)
+        xTaskCreate(core3_ecu_update_task, "c3_ecu_update", 1024 * 15, NULL, CORE3_ECU_UPDATE_PRIORITY, NULL);
     /**dprintf("Indexing map\n");
     uint8_t map_val = core3_map_index(&MapLTFT, 5, 878, NULL, NULL, NULL, NULL);
     dprintf("MAP_VAL = 0x%02X, %d, %f\n", map_val, (int)map_val, byte_to_correction(map_val));
 
     dprintf("LTFT X = %d, Y = %d\n", MapLTFT.x.len, MapLTFT.y.len);*/
+}
+
+void core3_ecu_update_task(void *arg)
+{
+    while (true)
+    {
+        core3_ecu_tick();
+
+        /*bt_stream_counter++;
+        if (bt_stream_counter > 3)
+        {
+            bt_stream_counter = 0;
+        }*/
+
+        vTaskDelay(pdMS_TO_TICKS(12));
+    }
 }
 
 void core3_init()
