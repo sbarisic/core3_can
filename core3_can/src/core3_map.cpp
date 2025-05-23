@@ -21,7 +21,7 @@ void find_axis_idx(core3_map_axis_t *axis, uint16_t val, uint8_t *out_lower, uin
         uint16_t prev = axis->axis[i - 1];
         uint16_t cur = axis->axis[i];
 
-        //dprintf("prev = %u, cur = %u\n", prev, cur);
+        // dprintf("prev = %u, cur = %u\n", prev, cur);
 
         // dprintf("prev %d, cur %d\n", (int)prev, (int)cur);
 
@@ -30,7 +30,7 @@ void find_axis_idx(core3_map_axis_t *axis, uint16_t val, uint8_t *out_lower, uin
             *out_lower = 0;
             *out_higher = 0;
             *out_lerp = 0;
-            //dprintf("Return None!\n");
+            // dprintf("Return None!\n");
             return;
         }
 
@@ -39,7 +39,7 @@ void find_axis_idx(core3_map_axis_t *axis, uint16_t val, uint8_t *out_lower, uin
             *out_lower = axis->len - 1;
             *out_higher = axis->len - 1;
             *out_lerp = 0;
-            //dprintf("Return OutOfBounds!\n");
+            // dprintf("Return OutOfBounds!\n");
             return;
         }
 
@@ -52,12 +52,12 @@ void find_axis_idx(core3_map_axis_t *axis, uint16_t val, uint8_t *out_lower, uin
             float real_val = val - prev;
             *out_lerp = real_val / max_val;
 
-            //dprintf("Return Middle!\n");
+            // dprintf("Return Middle!\n");
             return;
         }
     }
 
-    //dprintf("Return NULL!\n");
+    // dprintf("Return NULL!\n");
     *out_lower = 0;
     *out_higher = 0;
     *out_lerp = 0;
@@ -114,8 +114,8 @@ uint8_t core3_map_index(core3_map_t *map, uint16_t X, uint16_t Y, uint8_t *outA,
     float Y_Lerp;
     find_axis_idx(&map->y, Y, &Y_Low, &Y_High, &Y_Lerp);
 
-    //dprintf("(%d, %d) Indexing XLow %d, XHigh %d, YLow %d, YHigh %d, Xf %f, Yf %f\n", X, Y,
-    //        (int)X_Low, (int)X_High, (int)Y_Low, (int)Y_High, X_Lerp, Y_Lerp);
+    // dprintf("(%d, %d) Indexing XLow %d, XHigh %d, YLow %d, YHigh %d, Xf %f, Yf %f\n", X, Y,
+    //         (int)X_Low, (int)X_High, (int)Y_Low, (int)Y_High, X_Lerp, Y_Lerp);
 
     uint8_t A = core3_map_idx_raw(map, X_Low, Y_Low);
     uint8_t B = core3_map_idx_raw(map, X_Low, Y_High);
@@ -150,8 +150,8 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
 {
     uint8_t *idx = (uint8_t *)dest_memory;
 
-    dprintf("X Axis\n");
-    // X Axis
+    // dprintf("X Axis\n");
+    //  X Axis
     {
         *(int *)idx = map->x.len;
         idx += sizeof(int);
@@ -163,8 +163,8 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
         idx += map->x.len * sizeof(uint16_t);
     }
 
-    dprintf("Y Axis\n");
-    // Y Axis
+    // dprintf("Y Axis\n");
+    //  Y Axis
     {
         *(int *)idx = map->y.len;
         idx += sizeof(int);
@@ -176,8 +176,8 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
         idx += map->y.len * sizeof(uint16_t);
     }
 
-    dprintf("Mem\n");
-    // Memory
+    // dprintf("Mem\n");
+    //  Memory
     {
         size_t mem_len = map->x.len * map->y.len;
 
@@ -191,7 +191,7 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
 
     size_t written_bytes = (size_t)idx - (size_t)dest_memory;
 
-    dprintf("\n");
+    /*dprintf("\n");
 
     for (size_t i = 0; i < 32; i += 8)
     {
@@ -206,17 +206,27 @@ size_t core3_map_serialize(core3_map_t *map, void *dest_memory)
         dprintf("\n");
     }
 
-    dprintf("\n");
+    dprintf("\n");*/
 
     return written_bytes;
 }
 
-void core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr)
+bool core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr, size_t *read_bytes)
 {
+    //dprintf("Deserializing\n");
+
     uint8_t *idx = (uint8_t *)src_memory;
 
     int x_len = *(int *)src_memory;
     idx += sizeof(int);
+
+    if (x_len == 0 || x_len == -1)
+    {
+        *read_bytes = 0;
+        *tgt_map_ptr = NULL;
+        dprintf("Map X size invalid\n");
+        return false;
+    }
 
     uint16_t *x_axis = (uint16_t *)malloc(sizeof(uint16_t) * x_len);
     // uint16_t *x_axis = tgt_map->x.axis;
@@ -226,6 +236,12 @@ void core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr)
     int y_len = *(int *)idx;
     idx += sizeof(int);
 
+    if (y_len == 0 || y_len == -1)
+    {
+        dprintf("Map Y size invalid\n");
+        return false;
+    }
+
     uint16_t *y_axis = (uint16_t *)malloc(sizeof(uint16_t) * y_len);
     // uint16_t *y_axis = tgt_map->y.axis;
     memcpy(y_axis, idx, y_len * sizeof(uint16_t));
@@ -234,6 +250,10 @@ void core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr)
     uint8_t *map_memory = (uint8_t *)malloc(x_len * y_len);
     // uint8_t *map_memory = tgt_map->map_memory;
     memcpy(map_memory, idx, x_len * y_len);
+    idx += x_len * y_len;
+
+    if (read_bytes != NULL)
+        *read_bytes = (size_t)(idx - (uint8_t *)src_memory);
 
     core3_map_t *tgt_map = (core3_map_t *)malloc(sizeof(core3_map_t));
     tgt_map->x.len = x_len;
@@ -242,7 +262,10 @@ void core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr)
     tgt_map->y.axis = y_axis;
     tgt_map->map_memory = map_memory;
 
+    dprintf("[ECU] Deserialized map %d x %d\n", x_len, y_len);
+
     *tgt_map_ptr = tgt_map;
+    return true;
 }
 
 core3_map_t *core3_map_create(uint16_t *x_axis, int x_len, uint16_t *y_axis, int y_len)

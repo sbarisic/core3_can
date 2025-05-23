@@ -13,25 +13,25 @@ static DRAM_ATTR uint16_t AxisY_LFTF[] = {
     3000, 3250, 3500, 3750, 4000, 4250, 4500, 4750,
     5000, 5250, 5500, 5750, 6000, 6250, 6500, 6750, 7000};
 
-core3_map_t *MapLTFT = NULL;
-bool emu_available = false;
-emu_data_t emu;
+static core3_map_t *MapLTFT = NULL;
+static bool emu_available = false;
+static emu_data_t emu;
 
-volatile uint8_t octane_factor;
-volatile uint8_t lftf_value;
-volatile bool use_dbw;
-volatile uint8_t dbw_target;
+static volatile uint8_t octane_factor;
+static volatile uint8_t lftf_value;
+static volatile bool use_dbw;
+static volatile uint8_t dbw_target;
 
-uint16_t fake_RPM_base = 1621;
-uint16_t fake_RPM = 0;
-uint16_t fake_MAP_base = 85;
-uint16_t fake_MAP = 0;
-uint16_t fake_CLT = 95;
-uint8_t fake_TPS = 0;
-uint8_t fake_IAT = 25;
-float fake_wboLambda = 1.0f;
-float fake_lambdaTarget = 1.0f;
-float fake_LambdaCorr = 1.0f;
+static uint16_t fake_RPM_base = 1621;
+static uint16_t fake_RPM = 0;
+static uint16_t fake_MAP_base = 85;
+static uint16_t fake_MAP = 0;
+static uint16_t fake_CLT = 95;
+static uint8_t fake_TPS = 0;
+static uint8_t fake_IAT = 25;
+static float fake_wboLambda = 1.0f;
+static float fake_lambdaTarget = 1.0f;
+static float fake_LambdaCorr = 1.0f;
 
 size_t core3_round_up(size_t numToRound, size_t multiple)
 {
@@ -254,20 +254,52 @@ void core3_ecu_init()
     dbw_target = 0;
     use_dbw = false;
 
-    MapLTFT = core3_map_create(AxisX_LFTF, sizeof(AxisX_LFTF) / sizeof(*AxisX_LFTF), AxisY_LFTF, sizeof(AxisY_LFTF) / sizeof(*AxisY_LFTF));
+    bool eraseCal = false;
+    size_t maps_offset = 0x100;
 
-    for (size_t y = 0; y < MapLTFT->y.len; y++)
-    {
-        for (size_t x = 0; x < MapLTFT->x.len; x++)
-        {
-            core3_map_set_raw(MapLTFT, x, y, correction_to_byte(1.0f));
-        }
-    }
+    dprintf("[ECU] Init, cal offset %d bytes\n", maps_offset);
 
     // core3_ecu_ltft_serialize(core3_ecu_cal_writeToFlash, NULL);
 
-    const void *MapLTFT_Flash = core3_flash_cal_offset(0x100);
-    core3_map_deserialize(MapLTFT_Flash, &MapLTFT);
+    const void *MapLTFT_Flash = core3_flash_cal_offset(maps_offset);
+    if (MapLTFT_Flash == NULL)
+    {
+        dprintf("[ECU] Oh no!\n");
+        return;
+    }
+
+    size_t read_bytes = 0;
+    if (!core3_map_deserialize(MapLTFT_Flash, &MapLTFT, &read_bytes))
+    {
+        dprintf("[ECU] LTFT generating\n");
+        MapLTFT = core3_map_create(AxisX_LFTF, sizeof(AxisX_LFTF) / sizeof(*AxisX_LFTF), AxisY_LFTF, sizeof(AxisY_LFTF) / sizeof(*AxisY_LFTF));
+
+        for (size_t y = 0; y < MapLTFT->y.len; y++)
+        {
+            for (size_t x = 0; x < MapLTFT->x.len; x++)
+            {
+                core3_map_set_raw(MapLTFT, x, y, correction_to_byte(1.0f));
+            }
+        }
+
+        eraseCal = true;
+    } else {
+        dprintf("[ECU] LTFT (%d bytes) ... OK\n", read_bytes);
+    }
+
+    if (eraseCal)
+    {
+        uint8_t temp_buf[1024] = {0};
+        size_t len = core3_map_serialize(MapLTFT, temp_buf);
+
+        dprintf("[ECU] Cal writing %d bytes\n", len);
+
+        //core3_flash_cal_erase(0, 0);
+        //core3_flash_cal_write(maps_offset, temp_buf, len);
+
+        core3_ecu_cal_writeToFlash(NULL, temp_buf, len);
+        dprintf("[ECU] Maps written (%d bytes)\n", len);
+    }
 
     xTaskCreate(core3_ecu_update_task, "c3_ecu_update", 1024 * 15, NULL, CORE3_ECU_UPDATE_PRIORITY, NULL);
     /**dprintf("Indexing map\n");

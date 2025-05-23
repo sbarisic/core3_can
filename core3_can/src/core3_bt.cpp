@@ -569,7 +569,8 @@ bool core3_bt_send_data_len(uint8_t *dat, int len, bool no_wait)
     if (!is_connected)
         return false;
 
-    init_bt_queue();
+    if (!send_queue_valid)
+        return false;
 
     if (sendQueueSemaphore == NULL)
         return false;
@@ -724,6 +725,6 @@ esp_err_t core3_bt_init()
     dprintf("[Bluetooth] OK\n");
 
     init_bt_queue();
-    xTaskCreate(bt_send_task, "bt_send_task", 1024 * 15, NULL, CORE3_BT_SEND_PRIORITY, NULL);
+    xTaskCreate(bt_send_task, "bt_send_task", 1024 * 20, NULL, CORE3_BT_SEND_PRIORITY, NULL);
     return ESP_OK;
 }

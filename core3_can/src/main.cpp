@@ -337,8 +337,6 @@ varType_t core3_var_get(coreVarName_t var, float *out_varf, uint32_t *out_varu, 
 }
 
 btDataStruc btResponse;
-
-static uint64_t ms = 0;
 static bool var_watch_enabled = false;
 
 bool core3_var_watch_is_enabled()
@@ -364,12 +362,19 @@ IRAM_ATTR void core3_tick(TimerHandle_t timer)
 
 void variables_stream_task(void *arg)
 {
+    bool skip_first = false;
+
     while (true)
     {
         if (var_watch_enabled)
         {
             for (size_t i = 0; i < var_count; i++)
             {
+                if (i < var_count / 2 && skip_first)
+                {
+                    continue;
+                }
+
                 btResponse.ID = btDataID_VAR_WATCH_RESP;
                 btResponse.Counter = btDataID_VAR_WATCH_RESP;
                 btResponse.Data1 = variables[i].ID;
@@ -387,6 +392,8 @@ void variables_stream_task(void *arg)
             }
         }
 
+        skip_first = !skip_first;
+
         vTaskDelay(pdMS_TO_TICKS(40));
     }
 }
@@ -401,6 +408,8 @@ void update_variables_task(void *arg)
     bool errMAP = false;
     bool errWBO = true;
     bool Knock = false;
+
+    uint64_t ms = 1000;
 
     while (true)
     {

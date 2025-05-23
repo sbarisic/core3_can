@@ -24,6 +24,7 @@
         "random": "cpp",
         "functional": "cpp",
         "algorithm": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "cstddef": "cpp"
     }
 }

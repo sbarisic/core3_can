@@ -160,7 +160,7 @@ namespace Core3_BLE_Console {
 			RealtimeData(0);
 
 			BtDataQueue DQ = Bluetooth.GetDataQueue();
-			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x40, 960, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
+			BtData[] CmdArr = DQ.Commands.Cmd_CalRead(0x100, 960, (Mem) => OnMemReceived(Tbl, Mem)).ToArray();
 
 			foreach (BtData Cmd in CmdArr) {
 				while (!DQ.TryEnqueueSend(Cmd))

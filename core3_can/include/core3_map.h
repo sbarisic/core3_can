@@ -41,7 +41,7 @@ extern "C"
                             uint8_t *outA, uint8_t *outB, uint8_t *outC, uint8_t *outD);
 
     size_t core3_map_serialize(core3_map_t *map, void *dest_memory);
-    void core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr);
+    bool core3_map_deserialize(const void *src_memory, core3_map_t **tgt_map_ptr, size_t *read_bytes);
 
     void core3_ecu_init();
 
