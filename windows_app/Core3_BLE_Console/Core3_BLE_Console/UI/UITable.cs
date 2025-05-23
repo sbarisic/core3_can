@@ -643,11 +643,11 @@ namespace Core3_BLE_Console.UI {
 
 			Raylib.DrawRectangle(X, Y, W, H, BgColor);
 
-			if (CellIdx == (int)((Cell_Sel.Y + Cell_Selection.Y) * Width + (int)(Cell_Sel.X + Cell_Selection.X))) {
+			if (CellIdx == (int)((Cell_Sel.Y + Cell_Selection.Y - 1) * Width + (int)(Cell_Sel.X + Cell_Selection.X - 1))) {
 				int WW = (int)((Cell_Selection.X) * W);
 				int HH = (int)((Cell_Selection.Y) * H);
-				int StartX = (int)(X - WW);
-				int StartY = (int)(Y - HH);
+				int StartX = (int)(X - WW + CellSize.X);
+				int StartY = (int)(Y - HH + CellSize.Y);
 
 				if (WW < 0) {
 					StartX += WW - (int)(1 * CellSize.X);
