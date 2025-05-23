@@ -183,13 +183,13 @@ void core3_ecu_data2()
 
 uint16_t calcFakeRPM()
 {
-    float range = 2000;
+    float range = 2500;
     return (uint16_t)(fake_RPM_base + (range / 2) + (core3_clock_sine(0.313f * 0.5f, range)));
 }
 
 uint16_t calcFakeMAP()
 {
-    float range = 80;
+    float range = 130;
     return (uint16_t)(fake_MAP_base + (range / 2) + (core3_clock_sine(0.241f * 0.5f, range)));
 }
 
@@ -441,7 +441,7 @@ void core3_ecu_update_task(void *arg)
         if (clear_time != 0 && !ecu_dirty)
         {
             ms = core3_time_ms();
-            if (ms - clear_time > 1000 * 5)
+            if (ms - clear_time > 1000 * 2)
             {
                 clear_time = 0;
                 core3_ecu_cal_write_all();
