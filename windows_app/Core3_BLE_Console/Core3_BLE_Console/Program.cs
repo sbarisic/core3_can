@@ -92,6 +92,7 @@ namespace Core3_BLE_Console {
 			if (!UseRT)
 				return;
 
+			
 
 			Raylib.BeginDrawing();
 			Raylib.ClearBackground(Color.Black);
