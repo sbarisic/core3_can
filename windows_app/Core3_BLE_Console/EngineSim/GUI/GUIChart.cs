@@ -22,7 +22,8 @@ namespace EngineSim {
 		Vector2 LabelAreaSize;
 		Vector2 LabelTextOffset;
 
-		public string Label;
+		public string Label1;
+		public string Label2;
 		public GetValueFunc GetValue;
 		public GetValueFunc GetValue2;
 
@@ -34,6 +35,12 @@ namespace EngineSim {
 		public Color Line2Color = Color.Gray;
 		public float LineThickness = 2;
 
+		public int Decimals1 = 3;
+		public int Decimals2 = 3;
+
+		public string Unit1 = "";
+		public string Unit2 = "";
+
 		public GUIChart(string Name, int Samples, float TimeRangeSeconds, float Min, float Max) {
 			Size = new Vector2(100, 150);
 			LabelAreaSize = new Vector2(0, 40);
@@ -41,7 +48,7 @@ namespace EngineSim {
 			SampleTimer = null;
 
 			SamplesArray = new float[Samples];
-			Label = Name;
+			Label1 = Name;
 			this.TimeRangeSeconds = TimeRangeSeconds;
 			this.Min = Min;
 			this.Max = Max;
@@ -136,11 +143,14 @@ namespace EngineSim {
 			float Val = SamplesArray[SamplesArray.Length - 1];
 			float Val2 = Samples2Array[SamplesArray.Length - 1];
 
-			string Line1 = string.Format("{0} {1:0.000}", Label, Val);
-			string Line2 = string.Format("Min {0}, Max {1}", Min, Max);
+			Val = MathF.Round(Val, Decimals1);
+			Val2 = MathF.Round(Val2, Decimals2);
+
+			string Line1 = string.Format("{0} = {1} {2}", Label1, Val, Unit1);
+			string Line2 = string.Format("Min {0} {2}, Max {1} {2}", Min, Max, Unit1);
 
 			if (UseSecondSamples) {
-				Line1 = string.Format("{0} {1:0.000} / {2:0.000}", Label, Val, Val2);
+				Line1 = string.Format("{0} = {2} {4} / {1} = {3} {5}", Label1, Label2, Val, Val2, Unit1, Unit2);
 			}
 
 			G.Font.DrawTextEx(string.Format("{0}\n{1}", Line1, Line2), Position + new Vector2(LabelTextOffset.X, Size.Y - LabelTextOffset.Y), 1, Color.Black);

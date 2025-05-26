@@ -73,6 +73,11 @@ namespace EngineSim {
 			return float.Lerp(Min, Max, Val);
 		}
 
+		public static float Weighted(float A, float B, float W1, float W2) {
+			float W = ((W1 * A) + (W2 * B)) / (W1 + W2);
+			return W;
+		}
+
 		public static Color LerpColor(Color ClrMin, Color ClrMax, float Val) {
 			return new Color(Lerp(ClrMin.R, ClrMax.R, Val), Lerp(ClrMin.G, ClrMax.G, Val), Lerp(ClrMin.B, ClrMax.B, Val));
 		}
