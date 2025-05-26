@@ -14,7 +14,6 @@ namespace EngineSim {
 		// Constants
 
 		const float SpecificGasConstant = 287.058f; // J/(Kg*K)
-		const float IntakeEfficiency = 0.99f;
 
 
 		const float BoreMm = 72.5f; // meter
@@ -40,6 +39,7 @@ namespace EngineSim {
 
 		public int AmbientTemp = 21; // C
 		float Baro = 100.0f; // kPa
+		 float IntakeEfficiency = 0.99f;
 
 		// Turbocharger
 		public float WastegateDC = 100.0f;
@@ -313,6 +313,8 @@ namespace EngineSim {
 			float AirDensity = CalcDensityKgM3(MAP, IAT); // Kg/m3
 			float DisplacementPerCyl = DisplacementL / NumOfCylinders; // L
 
+			IntakeEfficiency = float.Lerp(0.70f, 0.95f, RPM / 6500.0f);
+
 			float CylinderAirMass = IntakeEfficiency * CalcAirMassG(AirDensity, DisplacementPerCyl); // g/cyl
 			float CalculatedAirMass = (CylinderAirMass * IntakeCyclesPerSecond); // g/s
 			AirFlow = CalculatedAirMass;
@@ -348,7 +350,10 @@ namespace EngineSim {
 				AirMassInManifold = 0;
 
 			float ConsumedAirMass = OldAirMassInManifold - AirMassInManifold;
-			float BurnTempC = Utils.Weighted(200.0f, 1000.0f, 1 - ConsumedAirMass, ConsumedAirMass);
+
+
+			float MaxBurnTemp = float.Lerp(750, 1250, Math.Clamp((TargetLambda - 0.75f) / 0.25f, 0, 1));
+			float BurnTempC = Utils.Weighted(200.0f, MaxBurnTemp, 1 - ConsumedAirMass, ConsumedAirMass);
 
 			//============================ Exhaust 
 

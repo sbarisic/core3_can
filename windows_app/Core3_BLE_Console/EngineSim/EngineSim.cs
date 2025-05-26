@@ -120,11 +120,11 @@ namespace EngineSim {
 			Chr_Exh.GetValue = () => Engine.ExhaustManifoldPressureKPa;
 			Chr_Exh.Unit1 = "kPa";
 			Chr_Exh.Decimals1 = 2;
-			Chr_Exh.Label2 = "TRPM";
-			Chr_Exh.Unit2 = "";
+			Chr_Exh.Label2 = "EGT";
+			Chr_Exh.Unit2 = "C";
 			Chr_Exh.Decimals2 = 0;
 			Chr_Exh.Line2Color = Color.Red;
-			Chr_Exh.GetValue2 = () => Engine.TurboShaftSpeed;
+			Chr_Exh.GetValue2 = () => Engine.ExhaustManifoldTempC;
 			Chr_Exh.UseSecondSamples = true;
 
 			Thread UpdateEngineThread = new Thread(UpdateEngine);
