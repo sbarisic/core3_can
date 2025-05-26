@@ -39,7 +39,7 @@ namespace EngineSim {
 
 		public int AmbientTemp = 21; // C
 		float Baro = 100.0f; // kPa
-		 float IntakeEfficiency = 0.99f;
+		float IntakeEfficiency = 0.99f;
 
 		// Turbocharger
 		public float WastegateDC = 100.0f;
@@ -72,6 +72,12 @@ namespace EngineSim {
 		public float STFT;
 
 		int TargetRPM = 0;
+
+		public Engine() {
+			for (int i = 0; i < LambdaQueue.Length; i++) {
+				LambdaQueue[i] = 1;
+			}
+		}
 
 		public void Pedal(float Pos) {
 			if (Pos > 100)
@@ -295,18 +301,6 @@ namespace EngineSim {
 
 			TargetLambda = MAPToTgtLambda(MAP);
 
-			//=================== Current lambda
-
-			for (int i = 1; i < LambdaQueue.Length; i++) {
-				LambdaQueue[i - 1] = LambdaQueue[i];
-			}
-			LambdaQueue[LambdaQueue.Length - 1] = TargetLambda;
-
-			float Speed = Math.Clamp((AirFlow - 30) / 50.0f, 0, 1);
-			float RandomFactor = (Rnd.NextSingle() * 0.05f) - 0.025f;
-			Lambda = LambdaQueue[(int)((LambdaQueue.Length - 1) * Speed)] + RandomFactor;
-
-
 
 			//========================== Airflow
 
@@ -367,8 +361,18 @@ namespace EngineSim {
 				AddedMassPerc = 0;
 
 			ExMassInExhaust += ConsumedAirMass;
-			float TempTransferFactor = Dt;
-			ExhaustManifoldTempC = Utils.Weighted(ExhaustManifoldTempC, BurnTempC, 1 - (AddedMassPerc * TempTransferFactor), (AddedMassPerc * TempTransferFactor));
+			ExhaustManifoldTempC = Utils.Weighted(ExhaustManifoldTempC, BurnTempC, 1 - (AddedMassPerc * Dt), (AddedMassPerc * Dt));
+
+			//=================== Current lambda
+			float RandomFactor = ((Rnd.NextSingle() * 0.05f) - 0.025f) * 0.35f;
+
+			for (int i = 1; i < LambdaQueue.Length; i++) {
+				LambdaQueue[i - 1] = LambdaQueue[i];
+			}
+			LambdaQueue[LambdaQueue.Length - 1] = Utils.Weighted(Lambda, TargetLambda, 1 - (AddedMassPerc * Dt * 80), (AddedMassPerc * Dt * 80)) + RandomFactor;
+
+			float Speed = Math.Clamp((AirFlow - 30) / 50.0f, 0, 1);
+			Lambda = LambdaQueue[(int)((LambdaQueue.Length - 1) * Speed)];
 
 			//============================ Turbo 
 			if (ExhaustManifoldPressureKPa > 300)
