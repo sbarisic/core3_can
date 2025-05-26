@@ -4,6 +4,9 @@
 #include <core3_gmlan.h>
 #include <core3_gpio.h>
 #include <core3_map.h>
+#include <core3_opsys.h>
+
+
 #include <ecumaster.h>
 #include <esp_timer.h>
 
@@ -482,76 +485,10 @@ void core3_program(void *arg)
     xTaskCreate(variables_stream_task, "var_stream", 1024 * 20, NULL, CORE3_VAR_STREAM_PRIORITY, NULL);
 }
 
-void getLineInput(char buf[], size_t len)
-{
-    memset(buf, 0, len);
-
-    fflush(stdout);
-    fflush(stdin);
-    fpurge(stdin); // clears any junk in stdin
-
-    char *bufp;
-    bufp = buf;
-    while (true)
-    {
-        vTaskDelay(pdMS_TO_TICKS(10));
-
-        *bufp = getchar();
-        if (*bufp != '\0' && *bufp != 0xFF && *bufp != '\r') // ignores null input, 0xFF, CR in CRLF
-        {
-            //'enter' (EOL) handler
-            if (*bufp == '\n')
-            {
-                printf("\n");
-                fflush(stdout);
-                *bufp = '\0';
-
-                getchar();
-                break;
-            } // backspace handler
-            else if (*bufp == '\b')
-            {
-                if (bufp - buf >= 1)
-                {
-                    printf("\b \b");
-                    fflush(stdout);
-                    bufp--;
-                }
-            }
-            else
-            {
-                printf("%c", *bufp);
-                fflush(stdout);
-                // pointer to next character
-                bufp++;
-            }
-        }
-
-        // only accept len-1 characters, (len) character being null terminator.
-        if (bufp - buf > (len)-2)
-        {
-            bufp = buf + (len - 1);
-            *bufp = '\0';
-            break;
-        }
-    }
-}
-
 void app_main()
 {
     dprintf("Starting app!\n");
-
-    /*char line_mem[64] = {0};
-    while (true)
-    {
-        printf(">> ");
-        getLineInput(line_mem, 64);
-
-        vTaskDelay(pdMS_TO_TICKS(1));
-        printf("You wrote: '%s'\n", line_mem);
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }*/
+    core3_opsys_init();
 
     core3_init();
     core3_flash_init();

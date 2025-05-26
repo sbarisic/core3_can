@@ -35,31 +35,52 @@ namespace EngineSim {
 
 			Gui = new GUI();
 
-			GUIPanel Tst = new GUIPanel();
-			Tst.Position = new Vector2(80, 50);
-			Tst.Size = new Vector2(600, 950);
-			Tst.IsResizable = true;
-			Gui.Add(Tst);
+			GUIPanel Panel1 = new GUIPanel();
+			Panel1.Position = new Vector2(80, 50);
+			Panel1.Size = new Vector2(600, 950);
+			Panel1.IsResizable = true;
+			Gui.Add(Panel1);
+
+			GUIPanel Panel2 = new GUIPanel();
+			Panel2.Position = new Vector2(700, 50);
+			Panel2.Size = new Vector2(600, 950);
+			Panel2.IsResizable = true;
+			Gui.Add(Panel2);
 
 			int ChrIdx = 0;
 			float TimeRange = 10;
-			GUIChart Chr_RPM = AddChart(Tst, "RPM", TimeRange, ChrIdx++, Color.Red, 0, 7000);
+			GUIChart Chr_RPM = AddChart(Panel1, "RPM", TimeRange, ChrIdx++, Color.Red, 0, 7000);
 			Chr_RPM.GetValue = () => Engine.RPM;
 
-			GUIChart Chr_MAP = AddChart(Tst, "MAP", TimeRange, ChrIdx++, Color.SkyBlue, 0, 200);
+			GUIChart Chr_MAP = AddChart(Panel1, "MAP", TimeRange, ChrIdx++, Color.SkyBlue, 0, 230);
 			Chr_MAP.GetValue = () => Engine.MAP;
 
-			GUIChart Chr_Ped = AddChart(Tst, "Pedal / DBW", TimeRange, ChrIdx++, Color.Green, 0, 100);
+			GUIChart Chr_Ped = AddChart(Panel1, "Pedal / DBW", TimeRange, ChrIdx++, Color.Green, 0, 100);
 			Chr_Ped.GetValue = () => Engine.PedalPos;
 			Chr_Ped.GetValue2 = () => Engine.DBWPos;
 			Chr_Ped.Line2Color = Color.DarkGreen;
 			Chr_Ped.UseSecondSamples = true;
 
-			GUIChart Chr_TLam = AddChart(Tst, "TgtLam", TimeRange, ChrIdx++, Color.Orange, 0.5f, 1.5f);
-			Chr_TLam.GetValue = () => Engine.TargetLambda;
+			Random Rnd = new Random();
 
-			GUIChart Chr_AirF = AddChart(Tst, "AirFlow", TimeRange, ChrIdx++, Color.Yellow, 0, 200);
+			GUIChart Chr_TLam = AddChart(Panel1, "TgtLam / Lam", TimeRange, ChrIdx++, Color.Orange, 0.6f, 1.2f);
+			Chr_TLam.GetValue = () => Engine.TargetLambda;
+			Chr_TLam.Line2Color = Color.Red;
+			Chr_TLam.GetValue2 = () => Engine.Lambda;
+			Chr_TLam.UseSecondSamples = true;
+
+			GUIChart Chr_AirF = AddChart(Panel1, "AirFlow", TimeRange, ChrIdx++, Color.Yellow, 0, 200);
 			Chr_AirF.GetValue = () => Engine.AirFlow;
+
+			ChrIdx = 0;
+			GUIChart Chr_Tmp = AddChart(Panel2, "CLT / IAT", TimeRange, ChrIdx++, Color.Blue, 0, 110);
+			Chr_Tmp.GetValue = () => Engine.CLT;
+			Chr_Tmp.Line2Color = Color.SkyBlue;
+			Chr_Tmp.GetValue2 = () => Engine.IAT;
+			Chr_Tmp.UseSecondSamples = true;
+
+			GUIChart Chr_PW = AddChart(Panel2, "PW", TimeRange, ChrIdx++, Color.White, 0, 20);
+			Chr_PW.GetValue = () => Engine.InjPW;
 
 			Thread UpdateEngineThread = new Thread(UpdateEngine);
 			UpdateEngineThread.IsBackground = true;
@@ -118,7 +139,7 @@ namespace EngineSim {
 
 		static GUIChart AddChart(GUIPanel Parent, string Name, float TimeRange, int Idx, Color LineClr, float Min, float Max) {
 			GUIChart Chr1 = new GUIChart(Name, 200, TimeRange, Min, Max);
-			Chr1.Position = new Vector2(10, (Chr1.Size.Y) * Idx);
+			Chr1.Position = new Vector2(10, 10 + (Chr1.Size.Y) * Idx);
 			Chr1.Anchor = Parent;
 			Chr1.LineColor = LineClr;
 			Parent.Add(Chr1);

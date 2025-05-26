@@ -44,9 +44,11 @@ namespace EngineSim {
 			for (int i = Child.Count - 1; i >= 0; i--) {
 				GUIElement C = Child[i];
 
+
 				if (Utils.IsInside(Utils.AddOffset(C.Rect, PosOffset), MousePos)) {
 					if (!C.IsMouseInside) {
 						Child.Remove(C);
+						//Child.Insert(Child.Count, C);
 						Child.Add(C);
 						C.IsMouseInside = true;
 						C.OnMouseEnter();
@@ -60,7 +62,7 @@ namespace EngineSim {
 				}
 
 				if (C.HandleInput())
-					break;
+					return true;
 			}
 
 			return false;
