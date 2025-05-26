@@ -4,6 +4,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include "esp_random.h"
+#include "bootloader_random.h"
 
 char user_name[32];
 char station_name[32];
@@ -384,7 +385,6 @@ osCmdValue_t *core3_cmd_get(char *cmd, osCmdValue_t *args, int arg_count)
 
 void core3_opsys_init()
 {
-    srand(time(NULL));
     char prompt[128];
 
     memset(user_name, 0, sizeof(user_name));
