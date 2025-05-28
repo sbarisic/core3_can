@@ -6,7 +6,6 @@
 #include <core3_map.h>
 #include <core3_opsys.h>
 
-
 #include <ecumaster.h>
 #include <esp_timer.h>
 
@@ -485,10 +484,16 @@ void core3_program(void *arg)
     xTaskCreate(variables_stream_task, "var_stream", 1024 * 20, NULL, CORE3_VAR_STREAM_PRIORITY, NULL);
 }
 
+void opsys_task(void *arg)
+{
+    core3_opsys_init();
+}
+
 void app_main()
 {
     dprintf("Starting app!\n");
-    core3_opsys_init();
+    xTaskCreate(opsys_task, "update_var", 1024 * 20, NULL, CORE3_ECU_UPDATE_PRIORITY, NULL);
+    return;
 
     core3_init();
     core3_flash_init();
