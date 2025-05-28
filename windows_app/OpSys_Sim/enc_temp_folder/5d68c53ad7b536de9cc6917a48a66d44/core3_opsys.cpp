@@ -823,9 +823,8 @@ osCmdValue_t* core3_cmd_if(char* cmd, char* cmdorig, int* tokens, osCmdValue_t* 
 	if (var1 != NULL && var1->value != NULL) {
 		if (var1->value->Type == VALUE_TYPE_FLOAT) {
 			if (var1->value->Float > 0) {
+				//printf("Exec! %s\n", code_if);
 				ret = exec_raw_line(code_if);
-			} else {
-				ret = exec_raw_line(code_else);
 			}
 		}
 	}
