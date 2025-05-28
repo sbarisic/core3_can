@@ -107,6 +107,8 @@ extern "C"
     float core3_clock_sine(float phase, float divi);
 
     char *core3_string_copy(const char *str);
+    bool core3_string_contains(const char* str, const char* cont);
+    char** core3_string_split(char* str, const char in_delim);
 
     bool core3_var_watch_is_enabled();
     void core3_var_watch_set(bool enabled);

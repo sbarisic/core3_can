@@ -1,5 +1,8 @@
 #pragma once
 
+#include <stdio.h>
+#include <stdarg.h>
+
 #ifdef OPSYS_SIM
 #define fpurge(input)
 #endif
