@@ -19,6 +19,7 @@ typedef struct {
 	size_t lines_count;
 	int cmd_ptr;
 	int lines_used;
+	size_t program_counter;
 } osProgram_t;
 
 typedef enum {
@@ -73,6 +74,7 @@ osProgram_t* core3_program_alloc(int line_size) {
 	prog->cmd_ptr = 0;
 	prog->lines_used = 0;
 	prog->lines = (char**)malloc(sizeof(char*) * line_size);
+	prog->program_counter = 0;
 	return prog;
 }
 
@@ -668,8 +670,6 @@ osCmdValue_t* core3_cmd_add(char* cmd, char* cmdorig, int* tokens, osCmdValue_t*
 	return ret;
 }
 
-size_t program_counter;
-
 osCmdValue_t* exec_raw_line(char* program_line) {
 	char* progline2 = core3_string_copy(program_line);
 	osCmdValue_t* ret = perform_command(progline2, strlen(progline2));
@@ -678,16 +678,17 @@ osCmdValue_t* exec_raw_line(char* program_line) {
 }
 
 osCmdValue_t* exec_raw(osProgram_t* prog) {
-	program_counter = 0;
+	prog->program_counter = 0;
 	osCmdValue_t* ret = NULL;
 
-	while (program_counter < prog->lines_used) {
-		if (program_counter <  0 || program_counter > prog->lines_count) {
+	while (prog->program_counter < prog->lines_used) {
+		if (prog->program_counter <  0 || prog->program_counter > prog->lines_count) {
 			printf("[Exception] Program counter out of bounds\n");
 			return NULL;
 		}
 
-		char* program_line = prog->lines[program_counter++];
+		char* program_line = prog->lines[prog->program_counter];
+		prog->program_counter = prog->program_counter + 1;
 		ret = exec_raw_line(program_line);
 	}
 
@@ -834,12 +835,20 @@ osCmdValue_t* core3_cmd_if(char* cmd, char* cmdorig, int* tokens, osCmdValue_t* 
 }
 
 osCmdValue_t* core3_cmd_jump(char* cmd, char* cmdorig, int* tokens, osCmdValue_t* args, int arg_count) {
+	if (current_prog_var == NULL || current_prog_var->value == NULL)
+		return NULL;
+
+	if (current_prog_var->value->Type != VALUE_TYPE_PROGRAM || current_prog_var->value->Ptr == NULL)
+		return NULL;
+
+	osProgram_t* current_prog = (osProgram_t*)current_prog_var->value->Ptr;
+
 	if (args[0].Type != VALUE_TYPE_FLOAT) {
 		return NULL;
 	}
 
 	int new_pc = (int)args[0].Float;
-	program_counter = new_pc;
+	current_prog->program_counter = new_pc;
 
 	return NULL;
 }
