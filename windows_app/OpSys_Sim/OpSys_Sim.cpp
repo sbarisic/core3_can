@@ -18,8 +18,7 @@ uint32_t esp_random() {
 
 int main()
 {
-
-	printf("Hello World!\n");
+	core3_opsys_init();
 
 	while (true) {
 

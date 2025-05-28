@@ -1,11 +1,11 @@
 #include <core3.h>
 #include <core3_opsys.h>
-#include <time.h>
 #include <stdlib.h>
+#include <time.h>
 
 #ifndef OPSYS_SIM
-#include "esp_random.h"
 #include "bootloader_random.h"
+#include "esp_random.h"
 #else
 #include <opsys_sim.h>
 #endif
@@ -362,11 +362,16 @@ size_t getLineInput(char buf[], size_t len)
 	return write_len;
 }
 
-void tokenize(char* cmd, int len, int* tokens, int* cur_tok)
+void tokenize(char* cmd, int len, int* tokens, int tokens_len, int* cur_tok)
 {
 	bool last_was_null = true;
 	bool parsing_quote = false;
 	int bracket_cnt = 0;
+
+	for (size_t i = 0; i < tokens_len; i++)
+	{
+		tokens[i] = 0;
+	}
 
 	for (size_t i = 0; i < len; i++)
 	{
@@ -444,7 +449,7 @@ osCmdValue_t* perform_command(char* cmd, int len)
 	// Tokenizing
 	int cur_tok = 0;
 	int tokens[32];
-	tokenize(cmd, len, tokens, &cur_tok);
+	tokenize(cmd, len, tokens, sizeof(tokens) / sizeof(*tokens), &cur_tok);
 
 	/*for (size_t i = 0; i < cur_tok; i++)
 	{
@@ -566,8 +571,7 @@ osCmdValue_t* core3_cmd_print(char* cmd, char* cmdorig, int* tokens, osCmdValue_
 				printf("ERR_STRING\n");
 			break;
 
-		case VALUE_TYPE_PROGRAM:
-		{
+		case VALUE_TYPE_PROGRAM: {
 			osProgram_t* prog = (osProgram_t*)args[i].Ptr;
 			printf("=== PROGRAM ===\n");
 
@@ -587,7 +591,7 @@ osCmdValue_t* core3_cmd_print(char* cmd, char* cmdorig, int* tokens, osCmdValue_
 
 			printf("=== END PROGRAM ===\n");
 		}
-		break;
+							   break;
 
 		default:
 			printf("print - Unknown variable type %d\n", args[i].Type);
