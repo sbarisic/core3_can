@@ -7,11 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef OPSYS_SIM
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
-
 #include "driver/sdmmc_host.h"
+#endif
 
 #define dprintf printf
 

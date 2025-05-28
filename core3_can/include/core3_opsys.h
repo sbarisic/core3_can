@@ -1,6 +1,9 @@
 #pragma once
 
+#ifndef OPSYS_SIM
 #include "esp_attr.h"
+#endif
+
 #include <inttypes.h>
 #include <stdint.h>
 #include <stddef.h>
