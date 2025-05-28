@@ -672,7 +672,7 @@ size_t program_counter;
 
 osCmdValue_t* exec_raw_line(char* program_line) {
 	char* progline2 = core3_string_copy(program_line);
-	osCmdValue_t* ret = perform_command(progline2, sizeof(progline2));
+	osCmdValue_t* ret = perform_command(progline2, strlen(progline2));
 	free(progline2);
 	return ret;
 }
@@ -833,6 +833,17 @@ osCmdValue_t* core3_cmd_if(char* cmd, char* cmdorig, int* tokens, osCmdValue_t* 
 	return ret;
 }
 
+osCmdValue_t* core3_cmd_jump(char* cmd, char* cmdorig, int* tokens, osCmdValue_t* args, int arg_count) {
+	if (args[0].Type != VALUE_TYPE_FLOAT) {
+		return NULL;
+	}
+
+	int new_pc = (int)args[0].Float;
+	program_counter = new_pc;
+
+	return NULL;
+}
+
 osCmdValue_t* core3_cmd_program(char* cmd, char* cmdorig, int* tokens, osCmdValue_t* args, int arg_count) {
 	osCmdValue_t* ret = NULL;
 	char* arg1 = &cmd[tokens[1]];
@@ -961,6 +972,7 @@ void core3_opsys_init() {
 	core3_opsys_register("exec", true, 1, core3_cmd_exec);
 	core3_opsys_register("compare", true, 2, core3_cmd_compare);
 	core3_opsys_register("if", true, 3, core3_cmd_if);
+	core3_opsys_register("jump", false, 1, core3_cmd_jump);
 
 	char line_mem[128] = { 0 };
 	size_t line_size = 0;
