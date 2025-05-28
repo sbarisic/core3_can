@@ -56,8 +56,10 @@ typedef struct {
 	osCmdValue_t* value;
 } osVar_t;
 
-//int os_values_len = 0;
 osCmdValue_t os_values[64];
+
+//int cleanup_stack_idx = 0;
+osCmdValue_t cleanup_stack[32];
 
 int os_var_idx = 0;
 osVar_t os_vars[64];
@@ -257,6 +259,9 @@ osCmdValue_t* core3_value_alloc() {
 }
 
 osCmdValue_t* core3_value_ref(osCmdValue_t* val) {
+	if (val == NULL)
+		return NULL;
+
 	val->RefCount++;
 	return val;
 }
@@ -549,9 +554,9 @@ osCmdValue_t* perform_command(char* cmd, int len) {
 
 			last_command_return = osCmd->onExec(cmd, cmd_orig2, tokens, &arg_stack[0], arg_counter);
 
-			for (size_t i = 0; i < arg_counter; i++) {
+			/*for (size_t i = 0; i < arg_counter; i++) {
 				core3_value_free(&arg_stack[i]);
-			}
+			}*/
 
 			arg_counter = 0;
 		}
@@ -657,14 +662,21 @@ osCmdValue_t* core3_cmd_add(char* cmd, char* cmdorig, int* tokens, osCmdValue_t*
 	return ret;
 }
 
-void exec_raw(osProgram_t* prog) {
-	for (size_t i = 0; i < prog->lines_used; i++) {
-		char* program_line = prog->lines[i];
+size_t program_counter;
+
+osCmdValue_t* exec_raw(osProgram_t* prog) {
+	program_counter = 0;
+	osCmdValue_t* ret = NULL;
+
+	while (program_counter < prog->lines_used) {
+		char* program_line = prog->lines[program_counter++];
 
 		char* progline2 = core3_string_copy(program_line);
-		perform_command(progline2, sizeof(progline2));
+		ret = perform_command(progline2, sizeof(progline2));
 		free(progline2);
 	}
+
+	return core3_value_ref(ret);
 }
 
 osCmdValue_t* core3_cmd_exec(char* cmd, char* cmdorig, int* tokens, osCmdValue_t* args, int arg_count) {
@@ -673,13 +685,10 @@ osCmdValue_t* core3_cmd_exec(char* cmd, char* cmdorig, int* tokens, osCmdValue_t
 
 	osVar_t* prog_var = core3_opsys_getvar((const char*)arg1);
 	if (prog_var->value->Type == VALUE_TYPE_PROGRAM && prog_var->value->Ptr != NULL) {
-		exec_raw((osProgram_t*)prog_var->value->Ptr);
+		ret = exec_raw((osProgram_t*)prog_var->value->Ptr);
 	} else {
 		printf("Variable '%s' not a program", arg1);
 	}
-
-
-
 
 	return ret;
 }
