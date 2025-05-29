@@ -371,7 +371,7 @@ void core3_ecu_init(bool isReInit)
     if (!core3_map_deserialize(MapLTFT_Flash, &MapLTFT, &read_bytes))
     {
         dprintf("[ECU] LTFT generating\n");
-        MapLTFT = core3_map_create(AxisX_LFTF, sizeof(AxisX_LFTF) / sizeof(*AxisX_LFTF), AxisY_LFTF, sizeof(AxisY_LFTF) / sizeof(*AxisY_LFTF));
+        MapLTFT = core3_map_create(sizeof(uint8_t), AxisX_LFTF, sizeof(AxisX_LFTF) / sizeof(*AxisX_LFTF), AxisY_LFTF, sizeof(AxisY_LFTF) / sizeof(*AxisY_LFTF));
 
         for (size_t y = 0; y < MapLTFT->y.len; y++)
         {

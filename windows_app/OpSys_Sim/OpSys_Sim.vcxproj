@@ -131,6 +131,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\core3_can\src\core3_map.cpp" />
     <ClCompile Include="..\..\core3_can\src\core3_opsys.cpp" />
     <ClCompile Include="OpSys_Sim.cpp" />
   </ItemGroup>

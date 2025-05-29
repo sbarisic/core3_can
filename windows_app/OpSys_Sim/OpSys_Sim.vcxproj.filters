@@ -21,6 +21,9 @@
     <ClCompile Include="..\..\core3_can\src\core3_opsys.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\core3_can\src\core3_map.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="opsys_sim.h">

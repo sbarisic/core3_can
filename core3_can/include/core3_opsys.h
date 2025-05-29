@@ -14,8 +14,6 @@
 #define CORE2_WINDOWS
 #endif
 
-#define EMU_BASE 0x600
-
 #if defined(__cplusplus)
 extern "C"
 {
