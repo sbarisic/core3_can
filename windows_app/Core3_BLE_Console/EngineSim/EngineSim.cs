@@ -120,12 +120,23 @@ namespace EngineSim {
 			Chr_Exh.GetValue = () => Engine.ExhaustManifoldPressureKPa;
 			Chr_Exh.Unit1 = "kPa";
 			Chr_Exh.Decimals1 = 2;
-			Chr_Exh.Label2 = "EGT";
-			Chr_Exh.Unit2 = "C";
+			Chr_Exh.Label2 = "WGDC";
+			Chr_Exh.Unit2 = "%";
 			Chr_Exh.Decimals2 = 0;
 			Chr_Exh.Line2Color = Color.Red;
-			Chr_Exh.GetValue2 = () => Engine.ExhaustManifoldTempC;
+			Chr_Exh.GetValue2 = () => Engine.WastegateDC;
 			Chr_Exh.UseSecondSamples = true;
+
+			GUIChart Chr_Exh2 = AddChart(Panel2, "TurbineSpeed", TimeRange, ChrIdx++, Color.Yellow, 0, 250000);
+			Chr_Exh2.GetValue = () => Engine.TurboShaftSpeed;
+			Chr_Exh2.Unit1 = "RPM";
+			Chr_Exh2.Decimals1 = 2;
+			/*Chr_Exh2.Label2 = "WGDC";
+			Chr_Exh2.Unit2 = "%";
+			Chr_Exh2.Decimals2 = 0;
+			Chr_Exh2.Line2Color = Color.Red;
+			Chr_Exh2.GetValue2 = () => Engine.WastegateDC;
+			Chr_Exh2.UseSecondSamples = true;*/
 
 			Thread UpdateEngineThread = new Thread(UpdateEngine);
 			UpdateEngineThread.IsBackground = true;

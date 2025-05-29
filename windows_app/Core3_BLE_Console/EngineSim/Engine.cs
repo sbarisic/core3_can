@@ -32,7 +32,7 @@ namespace EngineSim {
 		public float AirMassInManifold = 0; // g/manifold
 		float AirMassAddedPercent = 0; // %
 
-		const float ExhaustManifoldDisplacementL = 2.5f; // L
+		const float ExhaustManifoldDisplacementL = 3.0f; // L
 		public float ExhaustManifoldTempC = 0.0f; // C
 		public float ExhaustManifoldPressureKPa = 100.0f; // kPa
 		float ExMassInExhaust = 0;
@@ -73,10 +73,23 @@ namespace EngineSim {
 
 		int TargetRPM = 0;
 
+		CalMap Map_WGDC;
+		CalMap Map_CompEff;
+		CalMap Map_TurbineSpeed;
+
 		public Engine() {
 			for (int i = 0; i < LambdaQueue.Length; i++) {
 				LambdaQueue[i] = 1;
 			}
+
+			Map_WGDC = new CalMap("data/maps/map_wgdc.csv");
+			Map_WGDC.ReadFromFile();
+
+			Map_CompEff = new CalMap("data/maps/map_compeff.csv");
+			Map_CompEff.ReadFromFile();
+
+			Map_TurbineSpeed = new CalMap("data/maps/map_turbinespeed.csv");
+			Map_TurbineSpeed.ReadFromFile();
 		}
 
 		public void Pedal(float Pos) {
@@ -189,9 +202,19 @@ namespace EngineSim {
 			return ShaftSpeed;
 		}
 
+		float CalcTurboShaftSpeed2(float EMAP) {
+			float ShaftSpeed = float.Lerp(0, 250000, Math.Clamp(EMAP / 300, 0, 1));
+			return ShaftSpeed;
+		}
+
+		float CalcTurboShaftSpeed3(float EMAPRatio, float MAF) {
+			float TurbineSpeed = Map_TurbineSpeed.Get(EMAPRatio, MAF);
+			return TurbineSpeed;
+		}
+
 		float CalcTurboPressureRatio(float ShaftSpeed) {
 			float SpeedOffset = 30000;
-			return float.Lerp(1, 5.0f, Math.Clamp((ShaftSpeed - SpeedOffset) / (MaxTurboSpeed - SpeedOffset), 0, 1));
+			return float.Lerp(1, 3.2f, Math.Clamp((ShaftSpeed - SpeedOffset) / (MaxTurboSpeed - SpeedOffset), 0, 1));
 		}
 
 		float CalcTurboEfficiency() {
@@ -199,15 +222,17 @@ namespace EngineSim {
 
 			float PressRatEff = 1.0f;
 
-			float LowerPressRat = 2.0f;
-			float HigherPressRat = 2.5f;
+			//float LowerPressRat = 2.0f;
+			//float HigherPressRat = 2.5f;
 			float TurboShaftSpeedMax = 230000;
 			float TurboShaftSpeedHyst = 25000;
 
-			if (PressRat <= LowerPressRat)
+			/*if (PressRat <= LowerPressRat)
 				PressRatEff = float.Lerp(0.0f, 1.0f, PressRat / LowerPressRat);
 			else if (PressRat > HigherPressRat)
-				PressRatEff = float.Lerp(1.0f, 0.0f, (PressRat - HigherPressRat) / HigherPressRat);
+				PressRatEff = float.Lerp(1.0f, 0.0f, (PressRat - HigherPressRat) / HigherPressRat);*/
+
+			PressRatEff = Map_CompEff.Get(PressRat, AirFlow);
 
 			float ShaftSpeedEff = 1.0f;
 			if (TurboShaftSpeed > TurboShaftSpeedMax)
@@ -240,11 +265,9 @@ namespace EngineSim {
 			float TurboEff = CalcTurboEfficiency();
 
 			float NewICTemp = CalcTemperatureC(CalcDensityKgM3(Baro, AmbientTemp), ICPressure);
-			NewICTemp = float.Lerp(NewICTemp, AmbientTemp, TurboEff); // IC Efficiency
-			ICTemp = Utils.Weighted(ICTemp, NewICTemp, 1 - AirMassAddedPercent, AirMassAddedPercent);
+			NewICTemp = float.Lerp(NewICTemp, AmbientTemp, 100 * TurboEff * Dt); // IC Efficiency
+			ICTemp = Utils.Weighted(ICTemp, NewICTemp, 1 - AirMassAddedPercent * 0.5f, AirMassAddedPercent * 0.5f);
 			ICTemp = Utils.Weighted(ICTemp, AmbientTemp, 1 - AirMassAddedPercent, AirMassAddedPercent);
-
-			Console.WriteLine("ICTemp = {0}", ICTemp);
 
 			float ICAirDensity = CalcDensityKgM3(ICPressure, ICTemp); // Kg/m3
 
@@ -256,7 +279,12 @@ namespace EngineSim {
 			//float ThrottleAreaCurrent = (ThrottleAreaMm2 * DBWPos) / 100.0f; // mm2
 
 			if (PedalPos > 50.0f) {
-				WastegateDC = Math.Clamp(float.Lerp(1, 99, (PedalPos - 50) / 50), 1, 99);
+				float PedalPosTurbo = (PedalPos - 50) / 50.0f;
+				float DesiredPressureRatio = float.Lerp(1, 2, PedalPosTurbo);
+
+				float WGDC_MapVal = Map_WGDC.Get(RPM, DesiredPressureRatio) / 100.0f;
+
+				WastegateDC = Math.Clamp(float.Lerp(1, 99, WGDC_MapVal), 1, 99);
 			} else {
 				WastegateDC = 5;
 			}
@@ -360,8 +388,6 @@ namespace EngineSim {
 			if (AddedMassPerc < 0)
 				AddedMassPerc = 0;
 
-			ExMassInExhaust += ConsumedAirMass;
-			ExhaustManifoldTempC = Utils.Weighted(ExhaustManifoldTempC, BurnTempC, 1 - (AddedMassPerc * Dt), (AddedMassPerc * Dt));
 
 			//=================== Current lambda
 			float RandomFactor = ((Rnd.NextSingle() * 0.05f) - 0.025f) * 0.35f;
@@ -375,17 +401,24 @@ namespace EngineSim {
 			Lambda = LambdaQueue[(int)((LambdaQueue.Length - 1) * Speed)];
 
 			//============================ Turbo 
-			if (ExhaustManifoldPressureKPa > 300)
+			if (ExhaustManifoldPressureKPa > 1000)
 				WastegateDC = 0;
 
 			WastegateDC = Math.Clamp(WastegateDC, 5, 95);
 
+			ExMassInExhaust += ConsumedAirMass;
+			ExhaustManifoldTempC = Utils.Weighted(ExhaustManifoldTempC, BurnTempC, 1 - (AddedMassPerc * Dt), (AddedMassPerc * Dt));
+
 			float Wastegate = CalcWastegateFlow(WastegateDC / 100.0f);
 			//float TurbineSwallowGrams = 70.0f;
-			float TurboSwallowFactor = 0.1f;
+			float TurboSwallowFactor = 5.0f;
+			float WGSizeRelationToTurbine = 0.3f;
 
 			float OldExMassInExhaust = ExMassInExhaust;
-			ExMassInExhaust = Utils.Weighted(ExMassInExhaust, ExMassInExhaust * TurboSwallowFactor, 1 - Dt, Dt) * Wastegate;
+			float WGMassReduction = (WGSizeRelationToTurbine * TurboSwallowFactor * Wastegate);
+			float MassInExhaustPotential = ExMassInExhaust * TurboSwallowFactor * WGMassReduction;
+
+			ExMassInExhaust = Utils.Weighted(ExMassInExhaust, MassInExhaustPotential * Dt, 1 - Dt, Dt) * Wastegate;
 			if (ExMassInExhaust < 0)
 				ExMassInExhaust = 0;
 
@@ -397,19 +430,13 @@ namespace EngineSim {
 			if (ExhaustManifoldPressureKPa > 1000)
 				ExhaustManifoldPressureKPa = 1000;
 
-			// Wastegate control
-			//WastegateDC = float.Lerp(99, 1, Math.Clamp((ExhaustManifoldPressureKPa / (250 + 100)) - 0.5f, 0, 1));
-			//WastegateDC = MAP > 180 ? 5 : 95;
-			//WastegateDC = 5;
+			
+			//TurboShaftSpeed = CalcTurboShaftSpeed(1.7f, MassTroughTurbine);
+			//TurboShaftSpeed = CalcTurboShaftSpeed2(ExhaustManifoldPressureKPa);
+			TurboShaftSpeed = CalcTurboShaftSpeed3(ExhaustManifoldPressureKPa / 100.0f, AirFlow);
 
-			TurboShaftSpeed = CalcTurboShaftSpeed(1.7f, MassTroughTurbine);
-			//Console.WriteLine("TurboShaftSpeed = {0}", (int)TurboShaftSpeed);
+			// TODO: Add resistance to turbo shaft speed
 
-			/*if (ExhaustManifoldPressureKPa > 300)
-				WastegateDC = 90;
-
-			if (ExhaustManifoldPressureKPa < 300)
-				WastegateDC = 95;*/
 		}
 
 		static float ToCelsius(float Kelvin) {
